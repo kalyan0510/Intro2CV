@@ -7,7 +7,7 @@ from matplotlib.widgets import Slider, Button
 
 def imread(filename, channels=None, grey_scale=None):
     """
-    Simple imread that uses cv.imread
+    Simple imread that uses cv.imread to read and return an uint8 array
     :param filename: name of file
     :param channels: channels to return eg.: [0,1] to return image with two channels R & G
     :param grey_scale: method returns grey scale image if this is true
@@ -205,3 +205,33 @@ def overlap_boolean_image(im, boolean_im, val=255, color_val=(255, 0, 0)):
     elif len(im.shape) == 3:
         im[boolean_im > 0, 0:3] = color_val
     return im
+
+
+def round_range(start, end, len_max):
+    if int(end) > int(len_max):
+        return list(range(start, len_max)) + list(range(0, end % len_max))
+    return range(start, end)
+
+
+def reflect_border_range(start, end, len_max):
+    if start >= 0 and end < len_max:
+        return range(start, end)
+
+
+def get_window_ix(im, pos, w_shape):
+    (w_h, w_l) = map(lambda x: (x - 1) // 2, w_shape)
+    return np.ix_(round_range(pos[0] - w_h, pos[0] + w_h + 1, im.shape[0]),
+                  round_range(pos[1] - w_l, pos[1] + w_l + 1, im.shape[1]))
+
+
+def np_save(numpy_objects, file):
+    with open(file, 'wb') as f:
+        for numpy_object in numpy_objects:
+            np.save(f, numpy_object)
+
+
+def np_load(num_objects, file):
+    objects = []
+    with open(file, 'wb') as f:
+        for i in range(num_objects):
+            objects.append(np.load(f))

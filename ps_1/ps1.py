@@ -5,7 +5,7 @@ from ps_hepers.helpers import imread_from_rep, imread, imshow, imsave, is_in, im
 
 """
 Problem Set - 1
-Questions at : https://docs.google.com/document/d/13CJgtDr8kIX9KIrs6BYFDF6-N7cfAyX0R54v8CWoqmQ/pub?embedded=true
+Problems at : https://docs.google.com/document/d/13CJgtDr8kIX9KIrs6BYFDF6-N7cfAyX0R54v8CWoqmQ/pub?embedded=true
 """
 
 def testing_imshow():
