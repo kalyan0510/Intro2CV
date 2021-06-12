@@ -1,5 +1,5 @@
 import numpy as np
-from ps_hepers.helpers import imread_from_rep, imread, imsave
+from ps_hepers.helpers import imread_from_rep, add_gaussian_noise, imread, imsave
 
 
 def p1():
@@ -51,14 +51,12 @@ def p4():
 def p5():
     im = imread_from_rep('lena')
     sigma1 = 10.0
-    noise1 = np.random.normal(0, sigma1, im.shape[0:2])
     im_green = np.ndarray.copy(im)
-    im_green[:, :, 1] = (im_green[:, :, 1] + noise1)
+    im_green[:, :, 1] = add_gaussian_noise(im_green[:, :, 1], sigma1)
     imsave(im_green, 'output/ps0-5-a-1.png')
     sigma2 = 10.0
-    noise2 = np.random.normal(0, sigma2, im.shape[0:2])
     im_blue = np.ndarray.copy(im)
-    im_blue[:, :, 0] = (im_blue[:, :, 0] + noise2)
+    im_blue[:, :, 0] = add_gaussian_noise(im_blue[:, :, 0], sigma2)
     imsave(im_blue, 'output/ps0-5-b-1.png')
 
 

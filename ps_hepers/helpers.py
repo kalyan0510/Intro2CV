@@ -240,3 +240,9 @@ def np_load(num_objects, file):
     except Exception as e:
         print(e)
         return None
+
+
+def add_gaussian_noise(im, sigma=1):
+    im = im + np.random.normal(0, sigma, im.shape)
+    im[im > 255] = 255
+    return im.astype('uint8')
