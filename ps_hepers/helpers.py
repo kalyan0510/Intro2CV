@@ -232,6 +232,11 @@ def np_save(numpy_objects, file):
 
 def np_load(num_objects, file):
     objects = []
-    with open(file, 'wb') as f:
-        for i in range(num_objects):
-            objects.append(np.load(f))
+    try:
+        with open(file, 'rb') as f:
+            for i in range(num_objects):
+                objects.append(np.load(f, allow_pickle=True))
+        return objects
+    except Exception as e:
+        print(e)
+        return None

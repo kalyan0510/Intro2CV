@@ -61,6 +61,7 @@ def p5():
     im_blue[:, :, 0] = (im_blue[:, :, 0] + noise2)
     imsave(im_blue, 'output/ps0-5-b-1.png')
 
+
 p1()
 p2()
 p3()
