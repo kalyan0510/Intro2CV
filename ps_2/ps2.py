@@ -27,7 +27,7 @@ def p2():
     d_l = disparity_ssd(left, right)
     d_r = disparity_ssd(right, left)
     imshow([left, right, d_l, d_r])
-    np_save([d_l, d_r], 'pair1_disparities(L,R)')
+    np_save([d_l, d_r], 'objects/pair1_disparities(L,R)')
     imsave(imfix_scale(d_l), 'output/ps2-2-a-1.png')
     imsave(imfix_scale(d_r), 'output/ps2-2-a-2.png')
 
