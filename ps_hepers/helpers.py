@@ -246,3 +246,11 @@ def add_gaussian_noise(im, sigma=1):
     im = im + np.random.normal(0, sigma, im.shape)
     im[im > 255] = 255
     return im.astype('uint8')
+
+
+def read_points(filepath):
+    pts = []
+    with open(filepath) as f:
+        for line in f:
+            pts.append(tuple([float(ele) for ele in line.split()]))
+    return pts
