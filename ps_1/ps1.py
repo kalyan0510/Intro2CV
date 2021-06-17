@@ -60,8 +60,7 @@ def p1():
         print(sliders[0].val, sliders[1].val)
         return [1], [cv.Canny(im, sliders[0].val, sliders[1].val)]
 
-    imshow([im, edges], ['original', 'canny edges'], slider_attr=slider_attr,
-           slider_callback=[update_threshold] * 2)
+    imshow([im, edges], ['original', 'canny edges'], slider_attr=slider_attr, slider_callback=[update_threshold] * 2)
 
 
 def hough_lines_acc(edges, theta_range=np.arange(-180, 180)):
@@ -110,14 +109,14 @@ def hough_peak_matlab_like(acc, npeaks=1, threshold=0.5, size=None):
     size = [[size[i] + 1, size[i]][size[i] % 2] for i in range(len(acc.shape))]
     bounds = [(size[i] - 1) // 2 for i in range(len(acc.shape))]
     pts = []
-    max_peak = np.max(acc)
+    threshold_val = acc.min()*(1-threshold) + acc.max()*threshold
     while len(pts) < npeaks:
         index = np.unravel_index(np.asarray(acc).argmax(), acc.shape)
-        if len(index) == 2 and acc[index[0], index[1]] >= threshold * max_peak and acc[index[0], index[1]] > 0:
+        if len(index) == 2 and acc[index[0], index[1]] >= threshold_val and acc[index[0], index[1]] > 0:
             pts.append((index[0], index[1]))
             acc[np.ix_(round_range(index[0] - bounds[0], index[0] + bounds[0] + 1, acc.shape[0]),
                        round_range(index[1] - bounds[1], index[1] + bounds[1] + 1, acc.shape[1]))] = 0
-        elif len(index) == 3 and acc[index[0], index[1], index[2]] >= threshold * max_peak and acc[
+        elif len(index) == 3 and acc[index[0], index[1], index[2]] >= threshold_val and acc[
             index[0], index[1], index[2]] > 0:
             pts.append((index[0], index[1], index[2]))
             acc[np.ix_(round_range(index[0] - bounds[0], index[0] + bounds[0] + 1, acc.shape[0]),
@@ -239,8 +238,7 @@ def p2_experiment_peak_finding():
         return [0, 1], [draw_line_on_im(np.zeros(im.shape), lines_p_c), draw_line_on_im(np.zeros(im.shape), lines_p_m)]
 
     imshow([draw_line_on_im(np.zeros(im.shape), lines_p_c), draw_line_on_im(np.zeros(im.shape), lines_p_m)],
-           ['custom hough peak', 'matlab\'s hough peak'],
-           slider_attr=slider_attr, slider_callback=[update_exp] * 2)
+           ['custom hough peak', 'matlab\'s hough peak'], slider_attr=slider_attr, slider_callback=[update_exp] * 2)
 
 
 def p3():
@@ -266,8 +264,8 @@ def p3():
     slider_attr = [{'label': 'num peaks', 'valmin': 0, 'valmax': 99, 'valstep': 1},
                    {'label': 'hough peak threshold', 'valmin': 0.1, 'valmax': .99}]
     imshow([im_noise, blur_im_noise, edge_noise, edge_blur_noise, zeros, zeros],
-           ['im_noise', 'blur_im_noise', 'edge_noise', 'edge_blur_noise', 'noise lines', 'blur lines'],
-           slider_attr=slider_attr, slider_callback=[update_exp] * 2, shape=(3, 2))
+           ['im_noise', 'blur_im_noise', 'edge_noise', 'edge_blur_noise', 'noise lines', 'blur lines'], shape=(3, 2),
+           slider_attr=slider_attr, slider_callback=[update_exp] * 2)
 
 
 def p4():
@@ -434,7 +432,7 @@ def p8():
     imshow([edge, im_color])
 
 
-""" Run just the methods you need, else you will go through a lot of interactive canvas popups """
+""" Run just the methods that are needed, else the session will go through a lot of interactive canvas popups """
 # testing_imshow()
 # p1()
 # p2_experiment()

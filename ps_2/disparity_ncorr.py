@@ -25,8 +25,8 @@ def disparity_ncorr(left, right, max_disp=None, window_shape=None):
         for j in range(w_l, left.shape[1] - w_l):
             (d, ncorr) = (0, np.NINF)
             for j_i in range(max(w_l, j - max_disp), min(left.shape[1] - w_l, j + max_disp)):
-                l_w = left[get_window_ix(left, (i_th, j), window_shape)] * 1.0
-                r_w = right[get_window_ix(right, (i_th, j_i), window_shape)] * 1.0
+                l_w = left[get_window_ix(left.shape, (i_th, j), window_shape)] * 1.0
+                r_w = right[get_window_ix(right.shape, (i_th, j_i), window_shape)] * 1.0
                 l_w = (l_w - np.average(l_w))
                 r_w = (r_w - np.average(r_w))
                 std_p = l_w.std() * r_w.std()

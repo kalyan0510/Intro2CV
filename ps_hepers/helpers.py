@@ -51,7 +51,8 @@ def imsave(img, path_name):
     :param path_name: path of file
     :return: None
     """
-    cv.imwrite(path_name, img if len(img.shape) == 2 else cv.cvtColor(img, cv.COLOR_RGB2BGR))
+    img_float32 = np.float32(img)
+    cv.imwrite(path_name, img_float32 if len(img.shape) == 2 else cv.cvtColor(img_float32, cv.COLOR_RGB2BGR))
 
 
 def imfix_scale(img):
@@ -74,7 +75,7 @@ def is_in(im_shape, i, j):
     return 0 <= i < im_shape[0] and 0 <= j < im_shape[1]
 
 
-def imshow(im, im_title=None, shape=None, interpolation='bilinear', sup_title='Figure(s)', slider_attr=None,
+def imshow(im, im_title=None, shape=None, interpolation='bilinear', cmap=None, sup_title='Figure(s)', slider_attr=None,
            slider_callback=None,
            button_attr=None, button_callback=None):
     """
@@ -86,6 +87,7 @@ def imshow(im, im_title=None, shape=None, interpolation='bilinear', sup_title='F
     :param im_title: single string or list of strings defining the title for each image in $im
     :param shape: shape of subplots eg.: (3,1) makes fig to have 3 subplots one above the other
     :param interpolation: interpolation logic eg.: 'nearest', 'bicubic', 'bilinear', ..
+    :param cmap: color map of the plot
     :param sup_title: main title of the entire figure
     :param slider_attr: a list of set of slider attributes. one set for each slider that defines valmax, valmin, valint
     :param slider_callback: a list of callback methods each accepting the params {event, axs, sliders, buttons} which
@@ -95,6 +97,7 @@ def imshow(im, im_title=None, shape=None, interpolation='bilinear', sup_title='F
     define the state of figure/canvas
     :return: None
     """
+    # TODO : This method has become bulky. Work on simplification.
     if not type(im) == list:
         im = [im]
     # determine squarish shape to arrange all images
@@ -109,7 +112,10 @@ def imshow(im, im_title=None, shape=None, interpolation='bilinear', sup_title='F
         ax.set_axis_off()
     # plot each image in its axes
     for i in range(len(im)):
-        axs[i].imshow(im[i], interpolation=interpolation)
+        if cmap is not None:
+            axs[i].imshow(im[i], interpolation=interpolation, cmap=cmap)
+        else:
+            axs[i].imshow(im[i], interpolation=interpolation)
         axs_title = '%s $%sx%s$  $mn=%s$  $mx=%s$ ' % (
             im_title if not type(im_title) == list else im_title[i], im[i].shape[0], im[i].shape[1], np.min(im[i]),
             np.max(im[i]))
@@ -152,7 +158,10 @@ def imshow(im, im_title=None, shape=None, interpolation='bilinear', sup_title='F
             updated_im_s = updates[1]
             for u_i, u_im in zip(updated_i_s, updated_im_s):
                 if u_i < len(im):
-                    axs[u_i].imshow(u_im, interpolation=interpolation)
+                    if cmap is not None:
+                        axs[u_i].imshow(u_im, interpolation=interpolation, cmap=cmap)
+                    else:
+                        axs[u_i].imshow(u_im, interpolation=interpolation)
 
     # set main title
     fig.canvas.manager.set_window_title(sup_title)
@@ -190,21 +199,33 @@ def highlight_pos_im(im, points, size, highlight_val=255):
     return im
 
 
-def overlap_boolean_image(im, boolean_im, val=255, color_val=(255, 0, 0)):
+def overlap_boolean_image(im, boolean_im, val=255, color_val=(255, 0, 0), cross_marks=False):
     """
     The boolean array is projected into the input image (grey scale or color)
     :param im: image (grey scale or color)
     :param boolean_im: boolean image
     :param val: greyscale value used for projection onto image
     :param color_val: color value used for projection onto image
+    :param cross_marks: if Ture, marks pts on boolean im with a cross
     :return: overlapped image
     """
     im = np.copy(im)
+    if cross_marks:
+        boolean_im = cv.filter2D(boolean_im, -1, np.diag(np.ones(7)) + np.diag(np.ones(7))[::-1])
     if len(im.shape) == 2:
         im[boolean_im > 0] = val
     elif len(im.shape) == 3:
         im[boolean_im > 0, 0:3] = color_val
     return im
+
+
+def mark_points(im, points, color_val=(255, 0, 0)):
+    ij_s = np.asarray(points)
+    i_s = ij_s[:, 0]
+    j_s = ij_s[:, 1]
+    z = np.zeros((im.shape[0], im.shape[1]))
+    z[i_s, j_s] = 1
+    return overlap_boolean_image(im, z, cross_marks=True, color_val=color_val)
 
 
 def round_range(start, end, len_max):
@@ -218,10 +239,10 @@ def reflect_border_range(start, end, len_max):
         return range(start, end)
 
 
-def get_window_ix(im, pos, w_shape):
+def get_window_ix(shape, pos, w_shape):
     (w_h, w_l) = map(lambda x: (x - 1) // 2, w_shape)
-    return np.ix_(round_range(pos[0] - w_h, pos[0] + w_h + 1, im.shape[0]),
-                  round_range(pos[1] - w_l, pos[1] + w_l + 1, im.shape[1]))
+    return np.ix_(round_range(pos[0] - w_h, pos[0] + w_h + 1, shape[0]),
+                  round_range(pos[1] - w_l, pos[1] + w_l + 1, shape[1]))
 
 
 def np_save(numpy_objects, file):
@@ -254,3 +275,29 @@ def read_points(filepath):
         for line in f:
             pts.append(tuple([float(ele) for ele in line.split()]))
     return pts
+
+
+def non_max_suppression(im, window_shape=None):
+    im = im.copy()
+    if window_shape is None:
+        window_shape = ((im.shape[0] // 40) * 2 + 1, (im.shape[1] // 40) * 2 + 1)
+    if window_shape[0] % 2 == 0 or window_shape[1] % 2 == 0:
+        raise Exception('size should be odd, so the filter has a center pixel')
+    w_h = (window_shape[0] - 1) // 2
+    w_l = (window_shape[1] - 1) // 2
+    op = np.zeros(im.shape)
+    for i in range(w_h, im.shape[0] - w_h):
+        for j in range(w_l, im.shape[1] - w_l):
+            t = im[i, j]
+            im[i, j] = np.NINF
+            op[i, j] = 1.0 if t > im[i - w_h:i + w_h + 1, j - w_l:j + w_l + 1].max() else 0.0
+            im[i, j] = t
+    return op
+
+
+def xy_2_ij(pt_xy):
+    return int(pt_xy[1]), int(pt_xy[0])
+
+
+def ij_2_xy(pt_ij):
+    return pt_ij[1], pt_ij[0]

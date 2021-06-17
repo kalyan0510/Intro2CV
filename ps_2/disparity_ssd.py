@@ -26,8 +26,8 @@ def disparity_ssd(left, right, max_disp=None, window_shape=None):
         for j in range(w_l, left.shape[1] - w_l):
             (d, ssd) = (0, np.PINF)
             for j_i in range(max(w_l, j - max_disp), min(left.shape[1] - w_l, j + max_disp)):
-                l_w = left[get_window_ix(left, (i, j), window_shape)] * 1.0
-                r_w = right[get_window_ix(right, (i, j_i), window_shape)] * 1.0
+                l_w = left[get_window_ix(left.shape, (i, j), window_shape)] * 1.0
+                r_w = right[get_window_ix(right.shape, (i, j_i), window_shape)] * 1.0
                 ssd_i = np.sum(np.square(np.subtract(l_w, r_w)))
                 (d, ssd) = (j_i - j if ssd_i < ssd else d, min(ssd_i, ssd))
             d_map_slice[j] = d

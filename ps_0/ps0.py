@@ -60,8 +60,9 @@ def p5():
     imsave(im_blue, 'output/ps0-5-b-1.png')
 
 
-p1()
-p2()
-p3()
-p4()
-p5()
+if __name__ == '__main__':
+    p1()
+    p2()
+    p3()
+    p4()
+    p5()
