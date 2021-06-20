@@ -6,11 +6,9 @@ from ps_hepers.helpers import non_max_suppression, xy_2_ij
 from scipy.spatial import ConvexHull
 
 
-def im_der(im, with_norm=False):
+def im_der(im):
     gx = cv.Sobel(im, cv.CV_64F, 1, 0, ksize=3)
     gy = cv.Sobel(im, cv.CV_64F, 0, 1, ksize=3)
-    if not with_norm:
-        return gx, gy
     return gx, gy,
 
 

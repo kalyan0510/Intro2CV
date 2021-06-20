@@ -116,7 +116,7 @@ def imshow(im, im_title=None, shape=None, interpolation='bilinear', cmap=None, s
             axs[i].imshow(im[i], interpolation=interpolation, cmap=cmap)
         else:
             axs[i].imshow(im[i], interpolation=interpolation)
-        axs_title = '%s $%sx%s$  $mn=%s$  $mx=%s$ ' % (
+        axs_title = '%s $%sx%s$\n$mn=%.3f$  $mx=%.3f$ ' % (
             im_title if not type(im_title) == list else im_title[i], im[i].shape[0], im[i].shape[1], np.min(im[i]),
             np.max(im[i]))
         axs[i].set_title(axs_title, fontweight='bold')

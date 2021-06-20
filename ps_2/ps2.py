@@ -54,8 +54,8 @@ def test_disparity_on_noise(disparity_compute, noise_type, object_name_prefix='p
             imread_from_rep('pair1-D_L', grey_scale=True),
             imread_from_rep('pair1-D_R', grey_scale=True)],
            ['left', 'right', 'd_l', 'd_r', 'd_l noise', 'd_r noise', 'ground truth l', 'ground truth l'], shape=(4, 2))
-    imsave(d_l_noise, 'output/ ps2-3-a-1.png')
-    imsave(d_r_noise, 'output/ ps2-3-a-2.png')
+    imsave(d_l_noise, 'output/ps2-3-a-1.png')
+    imsave(d_r_noise, 'output/ps2-3-a-2.png')
 
 
 def p3():
