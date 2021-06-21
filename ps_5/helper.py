@@ -71,10 +71,11 @@ def expand(im, dst_size):
     return cv.GaussianBlur(cv.resize(im, dst_size[1::-1], interpolation=cv.INTER_NEAREST), (5, 5), 0)
 
 
-def gaussian_pyramid(im, max_l=np.PINF):
+def gaussian_pyramid(im, max_l=np.PINF, up_scaled=False):
     levels = min(int(np.log2(min(im.shape[:2])) + 1), max_l)
     g_pyr = [im]
-    [g_pyr.append(reduce(g_pyr[-1])) for i in range(levels-1)]
+    subscale = lambda i: expand(reduce(i), i.shape) if up_scaled else reduce(i)
+    [g_pyr.append(subscale(g_pyr[-1])) for i in range(levels - 1)]
     return g_pyr
 
 
@@ -88,4 +89,7 @@ def laplacian_pyramid(im, max_l=np.PINF):
     return l_pyr
 
 
-
+def remap(a, flow):
+    x = flow[:, :, 1] + np.arange(a.shape[1]).astype(np.float32)
+    y = flow[:, :, 0] + np.arange(a.shape[0])[:, np.newaxis].astype(np.float32)
+    return cv.remap(a, x, y, interpolation=cv.INTER_LINEAR)

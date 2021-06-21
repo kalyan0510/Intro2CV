@@ -301,3 +301,7 @@ def xy_2_ij(pt_xy):
 
 def ij_2_xy(pt_ij):
     return pt_ij[1], pt_ij[0]
+
+
+def stitch_images(images, axis=1):
+    return np.concatenate(images, axis=axis)

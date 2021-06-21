@@ -1,6 +1,6 @@
 import numpy as np
-from ps_5.helper import lucas_kanade, add_flow_over_im, reduce, gaussian_pyramid, expand, laplacian_pyramid
-from ps_hepers.helpers import imread_from_rep, imshow, np_load, imsave, np_save, imfix_scale
+from ps_5.helper import lucas_kanade, add_flow_over_im, reduce, gaussian_pyramid, expand, laplacian_pyramid, remap
+from ps_hepers.helpers import imread_from_rep, imshow, np_load, imsave, np_save, imfix_scale, stitch_images
 
 
 def p1_a():
@@ -11,7 +11,7 @@ def p1_a():
     e = imread_from_rep('TestSeq/ShiftR20', grey_scale=True)
     f = imread_from_rep('TestSeq/ShiftR40', grey_scale=True)
 
-    #a
+    # a
     flow1 = lucas_kanade(a, b, (15, 15))
     a_flow1 = add_flow_over_im(a, flow1)
     flow2 = lucas_kanade(a, c, (47, 47))
@@ -20,10 +20,10 @@ def p1_a():
     imsave(a_flow2, 'output/ps5-1-a-2.png')
     imshow([a_flow1, a_flow2], ['right shift', 'top right shift'], cmap='gray')
 
-    #b
+    # b
     flow_ims = [add_flow_over_im(a, lucas_kanade(a, x, (47, 47))) for x in [d, e, f]]
-    imshow(flow_ims,['r10', 'r20', 'r40'], shape=(3,1))
-    [imsave(im, 'output/ps5-1-b-%s.png' % (i+1)) for i, im in zip(range(len(flow_ims)), flow_ims)]
+    imshow(flow_ims, ['r10', 'r20', 'r40'], shape=(3, 1))
+    [imsave(im, 'output/ps5-1-b-%s.png' % (i + 1)) for i, im in zip(range(len(flow_ims)), flow_ims)]
 
 
 def p1_exp():
@@ -57,13 +57,42 @@ def p2():
     im = imread_from_rep('DataSeq1/yos_img_01', extension='.jpg')
     g_py = gaussian_pyramid(im, 4)
     imshow(g_py)
-    [imsave(g_py[i], 'output/ps5-2-a-%s.png' % (i+1)) for i in range(len(g_py))]
+    [imsave(g_py[i], 'output/ps5-2-a-%s.png' % (i + 1)) for i in range(len(g_py))]
     l_py = laplacian_pyramid(im, 4)
     imshow([imfix_scale(i) for i in l_py])
-    [imsave(g_py[i], 'output/ps5-2-b-%s.png' % (i+1)) for i in range(len(g_py))]
+    [imsave(g_py[i], 'output/ps5-2-b-%s.png' % (i + 1)) for i in range(len(g_py))]
+
+
+def p3_exp():
+    dataset_params = [('DataSeq2/%s', '.png', [0, 1, 2]), ('DataSeq1/yos_img_0%s', '.jpg', [1, 2, 3])]
+    for prm in dataset_params:
+        imgs = [imread_from_rep(prm[0] % i, extension=prm[1]) for i in prm[2]]
+        gpy_s = [gaussian_pyramid(imgs[i], 4) for i in range(len(imgs))]
+        [imshow([add_flow_over_im(a, lucas_kanade(a, b, (21, 21))) for a, b in zip(gpy_s[j], gpy_s[j + 1])],
+                ['level %s' % i for i in range(len(gpy_s[j]))]) for j in range(len(imgs) - 1)]
+
+
+def p3():
+    dataset_params = [('DataSeq1/yos_img_0%s', '.jpg', [1, 2, 3], 1, True), ('DataSeq2/%s', '.png', [0, 1, 2], 2, False)]
+    for prm, d in zip(dataset_params, range(len(dataset_params))):
+        imgs = [imread_from_rep(prm[0] % i, extension=prm[1]) for i in prm[2]]
+        gpy_s = [gaussian_pyramid(img, 4, up_scaled=prm[4]) for img in imgs]
+        flows = [lucas_kanade(gpy_s[i][prm[3]], gpy_s[i + 1][prm[3]], (21, 21)) for i in range(len(imgs) - 1)]
+        arrows = [add_flow_over_im(gpy_s[i][prm[3]], flows[i]) for i in range(len(imgs) - 1)]
+        remaps = [remap(gpy_s[i+1][prm[3]], -flows[i]) for i in range(len(imgs) - 1)]
+        diffs = [imfix_scale(gpy_s[i][prm[3]].astype(np.float32) - remaps[i].astype(np.float32)) for i in range(len(imgs) - 1)]
+        imshow(arrows, ['frame %s' for i in range(len(imgs))], sup_title='flow arrows')
+        imshow(remaps, ['frame %s' for i in range(len(imgs))], sup_title='remaps')
+        imsave(stitch_images(arrows), 'output/ps5-3-a-%s.png' % (d + 1))
+        imsave(stitch_images(imfix_scale(diffs)), 'output/ps5-3-a-%s.png' % (d + 2))
+        for i in range(len(remaps)):
+            imsave(gpy_s[i][prm[3]], 'observations/%s%s.png' % (d, i))
+            imsave(remaps[i], 'observations/%s%sr.png' % (d, i))
 
 
 if __name__ == '__main__':
-    # p1_a()
-    # p1_exp()
+    p1_a()
+    p1_exp()
     p2()
+    p3_exp()
+    p3()
