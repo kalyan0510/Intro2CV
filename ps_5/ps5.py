@@ -1,6 +1,8 @@
 import numpy as np
-from ps_5.helper import lucas_kanade, add_flow_over_im, reduce, gaussian_pyramid, expand, laplacian_pyramid, remap
-from ps_hepers.helpers import imread_from_rep, imshow, np_load, imsave, np_save, imfix_scale, stitch_images
+from ps_5.helper import lucas_kanade, add_flow_over_im, reduce, gaussian_pyramid, expand, laplacian_pyramid, remap, \
+    hierarchical_lk, hierarchical_laplacian_lk
+from ps_hepers.helpers import imread_from_rep, imshow, np_load, imsave, np_save, imfix_scale, stitch_images, \
+    get_frames_from_video
 
 
 def p1_a():
@@ -73,26 +75,121 @@ def p3_exp():
 
 
 def p3():
-    dataset_params = [('DataSeq1/yos_img_0%s', '.jpg', [1, 2, 3], 1, True), ('DataSeq2/%s', '.png', [0, 1, 2], 2, False)]
-    for prm, d in zip(dataset_params, range(len(dataset_params))):
-        imgs = [imread_from_rep(prm[0] % i, extension=prm[1]) for i in prm[2]]
-        gpy_s = [gaussian_pyramid(img, 4, up_scaled=prm[4]) for img in imgs]
-        flows = [lucas_kanade(gpy_s[i][prm[3]], gpy_s[i + 1][prm[3]], (21, 21)) for i in range(len(imgs) - 1)]
-        arrows = [add_flow_over_im(gpy_s[i][prm[3]], flows[i]) for i in range(len(imgs) - 1)]
-        remaps = [remap(gpy_s[i+1][prm[3]], -flows[i]) for i in range(len(imgs) - 1)]
-        diffs = [imfix_scale(gpy_s[i][prm[3]].astype(np.float32) - remaps[i].astype(np.float32)) for i in range(len(imgs) - 1)]
-        imshow(arrows, ['frame %s' for i in range(len(imgs))], sup_title='flow arrows')
-        imshow(remaps, ['frame %s' for i in range(len(imgs))], sup_title='remaps')
-        imsave(stitch_images(arrows), 'output/ps5-3-a-%s.png' % (d + 1))
-        imsave(stitch_images(imfix_scale(diffs)), 'output/ps5-3-a-%s.png' % (d + 2))
+    dataset_params = [('DataSeq1/yos_img_0%s', '.jpg', [1, 2, 3], 1, True),
+                      ('DataSeq2/%s', '.png', [0, 1, 2], 2, False)]
+    for (ds_path, ext, frame_seq, fit_level, upscale), d in zip(dataset_params, range(len(dataset_params))):
+        imgs = [imread_from_rep(ds_path % i, extension=ext) for i in frame_seq]
+        gpy_s = [gaussian_pyramid(img, 4, up_scaled=upscale) for img in imgs]
+        flows = [lucas_kanade(gpy_s[i][fit_level], gpy_s[i + 1][fit_level], (27, 27)) for i in range(len(imgs) - 1)]
+        arrows = [add_flow_over_im(gpy_s[i][fit_level], flows[i]) for i in range(len(imgs) - 1)]
+        remaps = [remap(gpy_s[i + 1][fit_level], -flows[i]) for i in range(len(imgs) - 1)]
+        diffs = [imfix_scale(gpy_s[i][fit_level].astype(np.float32) - remaps[i].astype(np.float32)) for i in
+                 range(len(imgs) - 1)]
+        imshow(arrows, ['frame %s' % i for i in range(len(imgs))], sup_title='flow arrows')
+        imshow(remaps, ['frame %s' % i for i in range(len(imgs))], sup_title='remaps')
+        imsave(stitch_images(arrows), 'output/ps5-3-a-%s.png' % (2 * d + 1))
+        imsave(stitch_images(imfix_scale(diffs)), 'output/ps5-3-a-%s.png' % (2 * d + 2))
         for i in range(len(remaps)):
-            imsave(gpy_s[i][prm[3]], 'observations/%s%s.png' % (d, i))
-            imsave(remaps[i], 'observations/%s%sr.png' % (d, i))
+            imsave(gpy_s[i][fit_level], 'observations/3-%s%s.png' % (d, i))
+            imsave(remaps[i], 'observations/3-%s%sr.png' % (d, i))
+
+
+def p4_a():
+    a = imread_from_rep('TestSeq/Shift0')
+    b = imread_from_rep('TestSeq/ShiftR2')
+    c = imread_from_rep('TestSeq/ShiftR5U5')
+    d = imread_from_rep('TestSeq/ShiftR10')
+    e = imread_from_rep('TestSeq/ShiftR20')
+    f = imread_from_rep('TestSeq/ShiftR40')
+    targets = [b, c, d, e, f]
+    flows = [hierarchical_lk(a, x) for x in targets]
+    flow_ims = [add_flow_over_im(a, flow) for flow in flows]
+    imshow([stitch_images([np.abs(flow[:, :, 0]), np.abs(flow[:, :, 1])], axis=0) for flow in flows],
+           ['r2', 'r5u5', 'r10', 'r20', 'r40'], cmap='gray', sup_title='displacement images')
+    imshow(flow_ims, ['r2', 'r5u5', 'r10', 'r20', 'r40'], sup_title='flow arrows')
+    remaps = [remap(a, flow) for flow in flows]
+    imshow([stitch_images([remap_i, target], axis=0) for (remap_i, target) in zip(remaps, targets[:-1])],
+           ['r2', 'r5u5', 'r10', 'r20', 'r40'], sup_title='remap vs actual')
+    imshow([imfix_scale(remap_i.astype(np.float32) - target.astype(np.float32)) for (remap_i, target) in
+            zip(remaps, targets[:-1])], sup_title='differences')
+    imsave(stitch_images(flow_ims), 'output/ps5-4-a-1.png')
+    imsave(stitch_images([imfix_scale(remap_i.astype(np.float32) - target.astype(np.float32)) for (remap_i, target) in
+                          zip(remaps, targets[:-1])]), 'output/ps5-4-a-2.png')
+
+
+def p4_bc():
+    dataset_params = [
+        ('DataSeq1/yos_img_0%s', '.jpg', [1, 2, 3]),
+        ('DataSeq2/%s', '.png', [0, 1, 2]),
+    ]
+    for (ds_path, ext, frame_seq), d in zip(dataset_params, range(len(dataset_params))):
+        imgs = [imread_from_rep(ds_path % i, extension=ext) for i in frame_seq]
+        f_range = range(len(imgs))
+        flows = [hierarchical_lk(imgs[i], imgs[i + 1]) for i in f_range[:-1]]
+        arrows = [add_flow_over_im(imgs[i], flows[i]) for i in f_range[:-1]]
+        remaps = [remap(imgs[i], flows[i]) for i in f_range[:-1]]
+        diffs = [imgs[i + 1].astype(np.float32) - remaps[i].astype(np.float32) for i in
+                 f_range[:-1]]
+        imshow([stitch_images(imfix_scale([np.abs(flow[:, :, 0]), np.abs(flow[:, :, 1])]), axis=0) for flow in flows],
+               range(len(flows)), sup_title='displacement images')
+        imshow(arrows, ['frame %s' % i for i in range(len(imgs))], sup_title='flow arrows')
+        imshow(remaps, ['frame %s' % i for i in range(len(imgs))], sup_title='remaps')
+        imshow([imfix_scale(diff) for diff in diffs], ['frame %s' % i for i in range(len(imgs))],
+               sup_title='differences')
+        imsave(stitch_images(arrows), 'output/ps5-4-%s-1.png' % chr(ord('b') + d))
+        imsave(stitch_images(imfix_scale(diffs)), 'output/ps5-4-%s-2.png' % chr(ord('b') + d))
+        for i in f_range[:-1]:
+            imsave(imgs[i + 1], 'observations/4-%s%s.png' % (d, i))
+            imsave(remaps[i], 'observations/4-%s%sr.png' % (d, i))
+
+
+def on_video():
+    imgs = get_frames_from_video('input/car/car.mp4', f_range=range(20, 40))
+    f_range = range(len(imgs))
+    [imsave(arrow, 'output/car/img-%s.png' % i) for arrow, i in zip(imgs, f_range)]
+    flows = [hierarchical_lk(imgs[i], imgs[i + 1]) for i in f_range[:-1]]
+    [imsave(imfix_scale(np.concatenate([flow, 0 * flow[:, :, 0][:, :, np.newaxis]], axis=2)),
+            'output/car/flow-%s.png' % i) for flow, i in zip(flows, f_range[:-1])]
+    arrows = [add_flow_over_im(imgs[i], flows[i] / 200.0, gap=15) for i in f_range[:-1]]
+    [imsave(arrow, 'output/car/%s.png' % i) for arrow, i in zip(arrows, f_range[:-1])]
+
+
+def p5():
+    dataset_params = [('Juggle/%s', '.png', [0, 1, 2])]
+    for (ds_path, ext, frame_seq), d in zip(dataset_params, range(len(dataset_params))):
+        imgs = [imread_from_rep(ds_path % i, extension=ext) for i in frame_seq]
+        f_range = range(len(imgs))
+        flows = [hierarchical_laplacian_lk(imgs[i], imgs[i + 1]) for i in f_range[:-1]]
+        arrows = [add_flow_over_im(imgs[i], flows[i]) for i in f_range[:-1]]
+        remaps = [remap(imgs[i], flows[i]) for i in f_range[:-1]]
+        diffs = [imgs[i + 1].astype(np.float32) - remaps[i].astype(np.float32) for i in
+                 f_range[:-1]]
+        imshow([stitch_images(([(flow[:, :, 0]), (flow[:, :, 1])]), axis=0) for flow in flows],
+               list(range(len(flows))), sup_title='displacement images')
+        imshow(arrows, ['frame %s' % i for i in range(len(imgs))], sup_title='flow arrows')
+        imshow(remaps, ['frame %s' % i for i in range(len(imgs))], sup_title='remaps')
+        imshow([imfix_scale(diff) for diff in diffs], ['frame %s' % i for i in range(len(imgs))],
+               sup_title='differences')
+        imsave(stitch_images(arrows), 'output/ps5-5-%s-1.png' % chr(ord('a') + d))
+        imsave(stitch_images(imfix_scale(diffs)), 'output/ps5-5-%s-2.png' % chr(ord('a') + d))
 
 
 if __name__ == '__main__':
+    print('Running p1_a')
     p1_a()
+    print('Running p1_exp')
     p1_exp()
+    print('Running p2')
     p2()
+    print('Running p3_exp')
     p3_exp()
+    print('Running p3')
     p3()
+    print('Running p4_a')
+    p4_a()
+    print('Running p4_bc')
+    p4_bc()
+    print('Running on_video')
+    on_video()
+    print('Running p5')
+    p5()
