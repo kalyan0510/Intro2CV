@@ -307,16 +307,16 @@ def stitch_images(images, axis=1):
     return np.concatenate(images, axis=axis)
 
 
-def get_frames_from_video(video_path, f_range, resize_to=None):
+def get_frames_from_video(video_path, f_range=None, resize_to=None):
     """
     Not a great but just a handy util to get a bunch of frames from a video
     """
     video = cv.VideoCapture(video_path)
-    frames_total = video.get(cv.CAP_PROP_FRAME_COUNT)
+    frames_total = int(video.get(cv.CAP_PROP_FRAME_COUNT))
     print('total frames: %s' % frames_total)
     frames = []
+    f_range = [f_range, range(frames_total)][f_range is None]
     for i in f_range:
-        video.set(cv.CAP_PROP_POS_FRAMES, i)
         res, frame = video.read()
         frames.append(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
     if resize_to is not None:
