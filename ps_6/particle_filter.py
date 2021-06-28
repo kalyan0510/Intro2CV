@@ -10,16 +10,20 @@ class ParticleFilter:
     """
 
     def __init__(self, state_range, dynamics_model_fn, score_particle_fn, diffuse_fn=lambda x: x,
-                 clip_particles_fn=lambda x: x, num_particles=100):
+                 clip_particles_fn=lambda x: x, num_particles=100, state_est='top_70_percentile', prior_st=None):
         self.state_range = state_range
         self.num_particles = num_particles
-        self.particle_states = np.asarray(
-            [random.sample(list(range_), num_particles) for range_ in self.state_range]).T.astype(np.float32)
+        if prior_st is None:
+            self.particle_states = np.asarray(
+                [random.sample(list(range_), num_particles) for range_ in self.state_range]).T.astype(np.float32)
+        else:
+            self.particle_states = prior_st
         self.particle_weights = np.ones(num_particles) / num_particles
         self.dynamics_model = dynamics_model_fn
         self.score_particle_fn = score_particle_fn
         self.diffuse_fn = diffuse_fn
         self.clip_particles_fn = clip_particles_fn
+        self.state_est = state_est
         self.state = self.particle_states[0]
 
     def update(self, observation, action):
@@ -50,7 +54,14 @@ class ParticleFilter:
         self.particle_weights = scores / scores.sum()
 
     def update_state(self):
-        self.state = (self.particle_states * self.particle_weights.reshape((-1, 1))).sum(axis=0)
+        if self.state_est == 'top_70_percentile':
+            idx = self.particle_weights > self.particle_weights.max() * .7
+        elif self.state_est == 'top_quarter':
+            idx = self.particle_weights.argsort()[-int(self.num_particles * 0.25):][::-1]
+        else:
+            idx = slice(None, None, None)
+        self.state = (self.particle_states[idx, ...] * self.particle_weights[idx].reshape((-1, 1))).sum(axis=0) / \
+                     self.particle_weights[idx].sum()
 
     def get_particle_states(self):
         return self.particle_states
