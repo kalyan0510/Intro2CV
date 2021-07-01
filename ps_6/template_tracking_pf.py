@@ -2,6 +2,7 @@ import numpy as np
 import cv2 as cv
 
 from ps_6.particle_filter import ParticleFilter
+from ps_hepers.helpers import im_hist
 
 
 class TemplateTrackingPF:
@@ -29,7 +30,7 @@ class TemplateTrackingPF:
         self.sigma_mse = sigma_mse
         self.num_particles = num_particles
         self.t_update_factor = t_update_factor
-        self.particle_filter = ParticleFilter(self.state_range, dynamics_model_fn=self.dynamics_model,
+        self.particle_filter = ParticleFilter(dynamics_model_fn=self.dynamics_model,
                                               score_particle_fn=self.get_similarity_fn(similarity_method),
                                               clip_particles_fn=self.clip_particles_states, num_particles=num_particles,
                                               state_est=state_est, prior_st=self.prior_fn(prior, track_box))
@@ -49,32 +50,45 @@ class TemplateTrackingPF:
             j_s = np.random.uniform(0, self.frame_shape[1], self.num_particles)
             return np.concatenate([i_s[:, np.newaxis], j_s[:, np.newaxis]], axis=1).astype(np.float32)
 
-    def dynamics_model(self, particle_states, action):
-        particle_states += np.random.normal(0, self.dynamics_std, particle_states.shape)
-        return particle_states
-
     def get_similarity_fn(self, similarity_method):
         if similarity_method == 'mse':
             return self.score_particle_mse
         elif similarity_method == 'ncorr':
             return self.score_particle_ncorr
+        elif similarity_method == 'histcmp':
+            return self.score_particle_hist_chi_sq
         else:
-            raise Exception("no such simmilarity method %s" % similarity_method)
+            raise Exception("no such similarity method %s" % similarity_method)
+
+    def dynamics_model(self, particle_states, action):
+        particle_states += np.random.normal(0, self.dynamics_std, particle_states.shape)
+        return particle_states
+
+    def get_candidate_patches(self, particle_states, observation):
+        return [observation[int(pos[0]) - self.window_hw[0]:int(pos[0]) + self.window_hw[0] + 1,
+                int(pos[1]) - self.window_hw[1]:int(pos[1]) + self.window_hw[1] + 1, ...].astype(
+            np.float32) for pos in particle_states]
 
     def score_particle_mse(self, particle_states, observation):
-        candidate_patches = [observation[int(pos[0]) - self.window_hw[0]:int(pos[0]) + self.window_hw[0] + 1,
-                             int(pos[1]) - self.window_hw[1]:int(pos[1]) + self.window_hw[1] + 1, ...].astype(
-            np.float32) for pos in particle_states]
         return [np.exp(-np.square(np.subtract(patch, self.template)).mean() / (
                 2 * self.sigma_mse ** 2)) for patch in
-                candidate_patches]
+                self.get_candidate_patches(particle_states, observation)]
 
     def score_particle_ncorr(self, particle_states, observation):
-        candidate_patches = [observation[int(pos[0]) - self.window_hw[0]:int(pos[0]) + self.window_hw[0] + 1,
-                             int(pos[1]) - self.window_hw[1]:int(pos[1]) + self.window_hw[1] + 1, ...].astype(
-            np.float32) for pos in particle_states]
-        return [1+np.mean((self.template - self.template.mean()) * (p - p.mean())) / (np.std(p) * np.std(self.template))
-                for p in candidate_patches]
+        return [
+            1 + np.mean((self.template - self.template.mean()) * (p - p.mean())) / (np.std(p) * np.std(self.template))
+            for p in self.get_candidate_patches(particle_states, observation)]
+
+    def score_particle_hist_chi_sq(self, particle_states, observation):
+        candidate_patches = self.get_candidate_patches(particle_states, observation)
+        t_hist = im_hist(self.template, normed=True)
+
+        def chi_sq(h1, h2):
+            x = h1 + h2
+            return np.divide((h1 - h2) ** 2, x, where=x!=0).sum() * 0.5
+
+        hists = [im_hist(p, normed=True) for p in candidate_patches]
+        return [np.exp(-chi_sq(h, t_hist) / (2 * self.sigma_mse ** 2)) for h in hists]
 
     def clip_particles_states(self, particle_states):
         """

@@ -322,3 +322,13 @@ def get_frames_from_video(video_path, f_range=None, resize_to=None):
     if resize_to is not None:
         return [cv.resize(f, dsize=resize_to, interpolation=cv.INTER_LINEAR) for f in frames]
     return frames
+
+
+def im_hist(im, bins_per_channel=10, val_range=(0, 255), normed=True):
+    if len(im.shape) == 2:
+        hist = np.histogram(im, bins=bins_per_channel, range=val_range)
+    else:
+        hist = np.concatenate(
+            [np.histogram(im[:, :, i], bins=bins_per_channel, range=val_range)[0][np.newaxis, :] for i in [0, 1, 2]],
+            axis=0)
+    return hist.astype(np.float64)/hist.sum() if normed else hist.astype(np.float64)

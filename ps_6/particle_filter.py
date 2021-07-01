@@ -9,7 +9,7 @@ class ParticleFilter:
     maintains the particles and updates their states according to the new measurements/control-inputs.
     """
 
-    def __init__(self, state_range, dynamics_model_fn, score_particle_fn, diffuse_fn=lambda x: x,
+    def __init__(self, dynamics_model_fn, score_particle_fn, state_range=None, diffuse_fn=lambda x: x,
                  clip_particles_fn=lambda x: x, num_particles=100, state_est='top_70_percentile', prior_st=None):
         self.state_range = state_range
         self.num_particles = num_particles
