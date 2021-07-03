@@ -315,10 +315,14 @@ def get_frames_from_video(video_path, f_range=None, resize_to=None):
     frames_total = int(video.get(cv.CAP_PROP_FRAME_COUNT))
     print('total frames: %s' % frames_total)
     frames = []
-    f_range = [f_range, range(frames_total)][f_range is None]
-    for i in f_range:
-        res, frame = video.read()
-        frames.append(cv.cvtColor(frame, cv.COLOR_BGR2RGB))
+    if f_range is None:
+        frames = [video.read()[1] for i in range(frames_total)]
+    else:
+        for i in f_range:
+            video.set(cv.CAP_PROP_POS_FRAMES, i)
+            res, frame = video.read()
+            frames.append(frame)
+    frames = [cv.cvtColor(frame, cv.COLOR_BGR2RGB) for frame in frames]
     if resize_to is not None:
         return [cv.resize(f, dsize=resize_to, interpolation=cv.INTER_LINEAR) for f in frames]
     return frames
