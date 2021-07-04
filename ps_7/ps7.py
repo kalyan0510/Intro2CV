@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
-from ps_7.helper import frame_diff, get_action_observations_with_labels, get_video_path, train_and_test
+from ps_7.helper import frame_diff, get_action_observations_with_labels, get_video_path, train_and_test, \
+    compute_cf_mat_with_test_person
 from ps_7.mhi_reader import MHIReader
 from ps_hepers.helpers import get_frames_from_video, imshow, imsave, imfix_scale
 
@@ -66,22 +67,17 @@ def observe_mhi():
 
 
 def p2_a():
-    mhi_feat_data, action_labels = get_action_observations_with_labels()
-    cf_mat = train_and_test(mhi_feat_data, action_labels, mhi_feat_data, action_labels)
-    print(cf_mat)
-
-
-def compute_cf_mat_with_test_person(person):
-    mhi_feat_train_data, action_labels_train = get_action_observations_with_labels(list({1, 2, 3} - {person}))
-    mhi_feat_test_data, action_labels_test = get_action_observations_with_labels([person])
-    cf_mat = train_and_test(mhi_feat_train_data, action_labels_train, mhi_feat_test_data, action_labels_test)
-    return cf_mat
+    print(
+        'Confusion matrix: (Rows - predicted, Cols - actuals) w/ same test & train data\n%s' % compute_cf_mat_with_test_person(
+            [1, 2, 3], [1, 2, 3]))
 
 
 def p2_b():
-    cf_mats = [compute_cf_mat_with_test_person(person) for person in [1, 2, 3]]
-    print(cf_mats)
-    print(np.sum(cf_mats, axis=0) / 3.0)
+    persons = [1, 2, 3]
+    cf_mats = [compute_cf_mat_with_test_person(list(set(persons) - {person}), [person]) for person in persons]
+    [print('Confusion Matrix: (Rows - predicted, Cols - actuals) w/ test person - %s \n%s' % (p, cf_mat)) for cf_mat, p
+     in zip(cf_mats, persons)]
+    print('Averaged Confusion matrix: (Rows - predicted, Cols - actuals)\n%s' % (np.sum(cf_mats, axis=0) / 3.0))
 
 
 if __name__ == '__main__':

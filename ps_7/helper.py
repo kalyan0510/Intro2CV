@@ -3,7 +3,7 @@ import cv2 as cv
 
 from ps_7.compute_moments import compute_mhi_feature_vec
 from ps_7.mhi_reader import MHIReader
-from ps_hepers.helpers import get_frames_from_video
+from ps_hepers.helpers import get_frames_from_video, np_load, np_save
 
 
 def get_video_path(action, person, trial):
@@ -48,3 +48,23 @@ def train_and_test(x_train, y_train, x_test, y_test):
     for pred, actual in zip(results, y_test):
         cf_mat[int(pred) - 1, int(actual) - 1] += 1
     return cf_mat / cf_mat.sum()
+
+
+def get_person_wise_action_dict(persons):
+    obj_filepath = 'observations/%s.npy' % '-'.join(['%s' % p for p in persons])
+    data_dict = np_load(1, obj_filepath)[0].item()
+    if data_dict is None:
+        data_dict = dict([(p, get_action_observations_with_labels([p])) for p in persons])
+        np_save([data_dict], obj_filepath)
+    return data_dict
+
+
+def compute_cf_mat_with_test_person(train_persons, test_persons):
+    persons = list(set(train_persons + test_persons))
+    persons_data = get_person_wise_action_dict(persons)
+    train_x = np.concatenate([persons_data[p][0] for p in train_persons], axis=0, dtype=np.float32)
+    train_y = np.concatenate([persons_data[p][1] for p in train_persons], axis=0, dtype=np.float32)
+    test_x = np.concatenate([persons_data[p][0] for p in test_persons], axis=0, dtype=np.float32)
+    test_y = np.concatenate([persons_data[p][1] for p in test_persons], axis=0, dtype=np.float32)
+    cf_mat = train_and_test(train_x, train_y, test_x, test_y)
+    return cf_mat
