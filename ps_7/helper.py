@@ -52,7 +52,7 @@ def train_and_test(x_train, y_train, x_test, y_test):
 
 def get_person_wise_action_dict(persons):
     obj_filepath = 'observations/%s.npy' % '-'.join(['%s' % p for p in persons])
-    data_dict = np_load(1, obj_filepath)[0].item()
+    data_dict = np_load(1, obj_filepath).item()
     if data_dict is None:
         data_dict = dict([(p, get_action_observations_with_labels([p])) for p in persons])
         np_save([data_dict], obj_filepath)

@@ -257,7 +257,7 @@ def np_load(num_objects, file):
         with open(file, 'rb') as f:
             for i in range(num_objects):
                 objects.append(np.load(f, allow_pickle=True))
-        return objects
+        return objects[0] if num_objects == 1 else objects
     except Exception as e:
         print(e)
         return None
@@ -335,4 +335,4 @@ def im_hist(im, bins_per_channel=10, val_range=(0, 255), normed=True):
         hist = np.concatenate(
             [np.histogram(im[:, :, i], bins=bins_per_channel, range=val_range)[0][np.newaxis, :] for i in [0, 1, 2]],
             axis=0)
-    return hist.astype(np.float64)/hist.sum() if normed else hist.astype(np.float64)
+    return hist.astype(np.float64) / hist.sum() if normed else hist.astype(np.float64)

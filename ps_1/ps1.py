@@ -1,7 +1,10 @@
 import cv2 as cv
 import numpy as np
+
+from ps_1.helper import hough_lines_acc, draw_line_on_im, hough_peak_custom, hough_peak_matlab_like, \
+    non_max_suppression, hough_circle_acc, draw_circle, find_parallel_lines_from_hough_peaks
 from ps_hepers.helpers import imread_from_rep, imread, imshow, imsave, is_in, imfix_scale, highlight_pos_im, \
-    overlap_boolean_image
+    overlap_boolean_image, mark_points, np_load, np_save
 
 """
 Problem Set - 1
@@ -10,6 +13,11 @@ Problems at : https://docs.google.com/document/d/13CJgtDr8kIX9KIrs6BYFDF6-N7cfAy
 
 
 def testing_imshow():
+    """
+    A test method for imshow() in ps_hepers.helpers
+    Use the interactive imshow() to display one of two input images in the 8 image holders
+    This method is not related to PS-1
+    """
     im = imread_from_rep('ps1-input0')
     im2 = imread_from_rep('lena')
     # sliders
@@ -36,22 +44,11 @@ def testing_imshow():
            button_callback=[reset_a, reset_b])
 
 
-# def l_o_g(im, th):
-#     """
-#     Experimental edge detection using laplacian with zero crossings
-#     """
-#     im_log = cv.Laplacian(im, cv.CV_16S)
-#     min_log = cv.morphologyEx(im_log, cv.MORPH_ERODE, np.ones((3, 3)))
-#     max_log = cv.morphologyEx(im_log, cv.MORPH_DILATE, np.ones((3, 3)))
-#     crossings = np.logical_or(np.logical_and(min_log < 0, im_log > 0), np.logical_and(max_log > 0, im_log < 0))
-#     return imfix_scale(crossings & im)
-
-
 def p1():
     # Canny Detection - https://docs.opencv.org/master/da/d22/tutorial_py_canny.html
     # 2d explanation on Non-maximal suppression & Hysteresis Thresholding -
     # http://www.justin-liang.com/tutorials/canny/#:~:text=Non%20maximum%20suppression%20works%20by,the%20gradient%20direction%20of%20q
-    im = imread_from_rep('ps1-input3 copy', grey_scale=True)
+    im = imread_from_rep('ps1-input0', grey_scale=True)
     edges = cv.Canny(im, 100, 200)
     slider_attr = [{'label': 'threshold1', 'valmin': 0, 'valmax': 300, 'valint': 100},
                    {'label': 'threshold2', 'valmin': 0, 'valmax': 300, 'valint': 200}]
@@ -61,102 +58,13 @@ def p1():
         return [1], [cv.Canny(im, sliders[0].val, sliders[1].val)]
 
     imshow([im, edges], ['original', 'canny edges'], slider_attr=slider_attr, slider_callback=[update_threshold] * 2)
+    imsave(edges, 'output/ps1-1-a-1.png')
 
 
-def hough_lines_acc(edges, theta_range=np.arange(-180, 180)):
-    """
-    custom hough lines that computes accumulator with only positive rho range to positive, while keeping the theta range
-    broad. This helps avoid issues with edges at th = -90 or 89. The issue being the peaks at boundaries of acc tend to
-    go inward due to noise in the accumulator
-    """
-    max_d = int(np.round(np.sqrt(edges.shape[0] ** 2 + edges.shape[1] ** 2)))
-    acc = np.zeros((max_d, len(theta_range)))
-    i_s, j_s = np.where(edges > 0)
-    for i, j in zip(i_s, j_s):
-        for th in theta_range:
-            d = int(np.round(j * np.cos(th * np.pi / 180.0) + i * np.sin(th * np.pi / 180.0)))
-            if d > 0:
-                th_i = np.where(theta_range == th)[0][0]
-                acc[d][th_i] = acc[d][th_i] + 1
-    return acc
-
-
-def draw_line_on_im(im, th_d_tuples):
-    shape = im.shape
-    for th_d in th_d_tuples:
-        d = th_d[0]
-        th = th_d[1]
-        with_x = np.abs(th) >= 45.0
-        for it in range(shape[1] if with_x else shape[0]):
-            th_in_radians = th * np.pi / 180.0
-            x = int(np.round(it if with_x else (d - it * np.sin(th_in_radians)) / np.cos(th_in_radians)))
-            y = int(np.round(it if not with_x else (d - it * np.cos(th_in_radians)) / np.sin(th_in_radians)))
-            if is_in(im.shape, y, x):
-                im[y, x] = 1
-    return im
-
-
-def hough_peak_matlab_like(acc, npeaks=1, threshold=0.5, size=None):
-    """
-    This one works with both two and three dimensional hough accumulator spaces/bins
-    """
-    acc = np.copy(acc)
-
-    def round_range(start, end, max):
-        return [range(start, end), list(range(start, max)) + list(range(0, end % max))][int(end) >= int(max)]
-
-    size = [size, np.asarray(acc.shape) // 50][size is None]
-    size = [[size[i] + 1, size[i]][size[i] % 2] for i in range(len(acc.shape))]
-    bounds = [(size[i] - 1) // 2 for i in range(len(acc.shape))]
-    pts = []
-    threshold_val = acc.min()*(1-threshold) + acc.max()*threshold
-    while len(pts) < npeaks:
-        index = np.unravel_index(np.asarray(acc).argmax(), acc.shape)
-        if len(index) == 2 and acc[index[0], index[1]] >= threshold_val and acc[index[0], index[1]] > 0:
-            pts.append((index[0], index[1]))
-            acc[np.ix_(round_range(index[0] - bounds[0], index[0] + bounds[0] + 1, acc.shape[0]),
-                       round_range(index[1] - bounds[1], index[1] + bounds[1] + 1, acc.shape[1]))] = 0
-        elif len(index) == 3 and acc[index[0], index[1], index[2]] >= threshold_val and acc[
-            index[0], index[1], index[2]] > 0:
-            pts.append((index[0], index[1], index[2]))
-            acc[np.ix_(round_range(index[0] - bounds[0], index[0] + bounds[0] + 1, acc.shape[0]),
-                       round_range(index[1] - bounds[1], index[1] + bounds[1] + 1, acc.shape[1]),
-                       round_range(index[2] - bounds[2], index[2] + bounds[2] + 1, acc.shape[2]))] = 0
-        else:
-            break
-    return pts
-
-
-def hough_peak_custom(hough_acc, threshold=0.5):
-    hough_acc_w = cv.copyMakeBorder(hough_acc, 3, 3, 3, 3, cv.BORDER_WRAP)
-    blur_acc = cv.GaussianBlur(hough_acc_w, (5, 5), 0)[3:-3, 3:-3]
-    th_blur_acc = blur_acc * (blur_acc > np.max(blur_acc) * threshold)
-    nms_th_blur_acc = non_max_suppression(th_blur_acc)
-    # imshow(nms_th_blur_acc)
-    ds, ths = np.where(nms_th_blur_acc > 0)
-    return [(d, th) for d, th in zip(ds, ths)]
-
-
-def non_max_suppression(im, size=3):
-    if size % 2 == 0:
-        raise Exception('size should be odd, so the filter has a center pixel')
-    uv_s = []
-    for i in range(-size // 2 + 1, size // 2 + 1):
-        for j in range(-size // 2 + 1, size // 2 + 1):
-            uv_s.append((i, j))
-    uv_s.remove((0, 0))
-    im_size = im.shape
-    op = np.zeros(im_size)
-    for i in range(im_size[0]):
-        for j in range(im_size[1]):
-            op[i, j] = im[i, j] > np.max(np.asarray(
-                [im[i + uv[0], j + uv[1]] if is_in(im_size, i + uv[0], j + uv[1]) else np.NINF for uv in uv_s]))
-    return op
-
-
-def p2_experiment():
+def p2():
     image_filename = 'ps1-input0'
     im = imread_from_rep(image_filename, grey_scale=True)
+    # a
     # load color version to overlay the detected lines
     im_color = imread_from_rep(image_filename)
     # get edges with canny
@@ -164,20 +72,27 @@ def p2_experiment():
     # compute accumulator array
     th_range = np.arange(-180, 180, 1)
     hough_acc = hough_lines_acc(edges, th_range)
-    imsave(hough_acc, 'output/ps1-2-a-1.png')
+    imsave(imfix_scale(hough_acc), 'output/ps1-2-a-1.png')
+    # b
     # using custom peak finding, but the method is copied so that intermediate steps can be visualized in the
     # interactive imshow figure
     hough_acc_w = cv.copyMakeBorder(hough_acc, 3, 3, 3, 3, cv.BORDER_WRAP)
     blur_acc = cv.GaussianBlur(hough_acc_w, (5, 5), 0)[3:-3, 3:-3]
     th_blur_acc = blur_acc * (blur_acc > np.max(blur_acc) * 0.90)
     nms_th_blur_acc = non_max_suppression(th_blur_acc)
-
+    peak_highlighted_acc = overlap_boolean_image(imfix_scale(hough_acc), nms_th_blur_acc, cross_marks=True)
+    imsave(peak_highlighted_acc, 'output/ps1-2-b-1.png')
+    # c
     ds, ths = np.where(nms_th_blur_acc > 0)
     # convert the th indexes to theta range
     line_params = [(d, th_range[th]) for d, th in zip(ds, ths)]
     # draw lines over new image and merge it into red channel of colored input image
     line_im = draw_line_on_im(np.zeros(im.shape), line_params)
     im_color[:, :, 1] = im_color[:, :, 1] + line_im * 255.0
+    im_color_to_render = np.copy(im_color)
+    im_color_to_render[line_im > 0, :] = 0
+    im_color_to_render[line_im > 0, 0] = 255
+    imsave(im_color_to_render, 'output/ps1-2-c-1.png')
     # slider that controls the thresholding
     slider_attr = [{'label': 'threshold over accumulator', 'valmin': 0.1, 'valmax': .99, 'valstep': 0.01}]
 
@@ -193,22 +108,30 @@ def p2_experiment():
         print(line_params)
         print(line_im.shape, im.shape, edges.shape)
         im_color_to_render = np.copy(im_color)
+        im_color_to_render[line_im > 0, :] = 0
         im_color_to_render[line_im > 0, 0] = 255
-        return [3, 4, 5, 6], [th_blur_acc, nms_th_blur_acc, line_im, im_color_to_render]
+        return [3, 4, 5, 6], [th_blur_acc, overlap_boolean_image(nms_th_blur_acc, nms_th_blur_acc, cross_marks=True),
+                              line_im, im_color_to_render]
 
-    imshow([edges, hough_acc, blur_acc, th_blur_acc, nms_th_blur_acc, line_im, im_color],
+    imshow([edges, hough_acc, blur_acc, th_blur_acc, peak_highlighted_acc, line_im, im_color_to_render],
            ['edges', 'hough_acc', 'blur_acc', 'th_blur_acc', 'nms_th_blur_acc', 'line_im', 'colored'],
            interpolation='nearest', slider_attr=slider_attr, slider_callback=[slider_update])
     imsave(imfix_scale(hough_acc), 'observations/hough_acc.png')
+    # d
+    """
+    What parameters did you use for finding lines in this image?
+    The parameters are as follows:
+    Canny thresholds: 100, 200
+    Hough accumulator sizes: theta is [-180, 180] and d is [0, #pixelsondiagonal]
+    Hough peaks method: Simple non maximal suppression with window size 3 and threshold 90% of max 
+    """
 
 
 def p2_experiment_load_houghacc():
     im = imread('observations/hough_acc.png', grey_scale=True)
-    print(im.shape)
     im_w = cv.copyMakeBorder(im, 3, 3, 3, 3, cv.BORDER_WRAP)
     imblur = cv.GaussianBlur(im_w, (5, 5), 0)
     imblur = imblur[3:-3, 3:-3]
-    print(imblur.shape)
     th_imblur = (imblur > np.max(imblur) * .9) * imblur
     nm_imblur = non_max_suppression(th_imblur)
     imshow([im, im_w, imfix_scale(imblur), th_imblur, nm_imblur], interpolation='nearest')
@@ -233,8 +156,6 @@ def p2_experiment_peak_finding():
         lines_p_c = [(d_th[0], th_range[d_th[1]]) for d_th in hough_peaks_c]
         hough_peaks_m = hough_peak_matlab_like(hough_acc, int(sliders[1].val), sliders[0].val)
         lines_p_m = [(d_th[0], th_range[d_th[1]]) for d_th in hough_peaks_m]
-        # print('updated', len(lines_p_m))
-        # print(lines_p_m)
         return [0, 1], [draw_line_on_im(np.zeros(im.shape), lines_p_c), draw_line_on_im(np.zeros(im.shape), lines_p_m)]
 
     imshow([draw_line_on_im(np.zeros(im.shape), lines_p_c), draw_line_on_im(np.zeros(im.shape), lines_p_m)],
@@ -242,40 +163,59 @@ def p2_experiment_peak_finding():
 
 
 def p3():
-    im_noise = imread_from_rep('ps1-input0-noise copy')
-    blur_im_noise = cv.GaussianBlur(im_noise, (5, 5), 0)
+    image_filename = 'ps1-input0-noise'
+    im_noise = imread_from_rep(image_filename)
+    im_color = imread_from_rep(image_filename)
+    # a
+    blur_im_noise = cv.GaussianBlur(im_noise, (7, 7), 4)
+    imsave(blur_im_noise, 'output/ps1-3-a-1.png')
+    # b
     edge_noise = cv.Canny(im_noise, 100, 200)
     edge_blur_noise = cv.Canny(blur_im_noise, 100, 200)
+    imsave(edge_noise, 'output/ps1-3-b-1.png')
+    imsave(edge_blur_noise, 'output/ps1-3-b-2.png')
+    # c
     # dummy init image to show before adjusting params
     zeros = np.zeros(im_noise.shape)
     th_range = np.arange(-180, 180, 1)
-    noise_hough_acc = hough_lines_acc(edge_noise, th_range)
+    # noise_hough_acc = hough_lines_acc(edge_noise, th_range)
     blur_hough_acc = hough_lines_acc(edge_blur_noise, th_range)
+    hough_peaks_blur = hough_peak_matlab_like(blur_hough_acc, 10, 0.28, np.asarray(blur_hough_acc.shape) // 10)
+    lines_p_blur = [(d_th[0], th_range[d_th[1]]) for d_th in hough_peaks_blur]
+    lines_drawn = draw_line_on_im(np.zeros(blur_im_noise.shape), lines_p_blur)
+    imsave(mark_points(blur_hough_acc, hough_peaks_blur), 'output/ps1-3-c-1.png')
+    im_color[lines_drawn[:, :, 0] > 0, :] = [255, 0, 0]
+    imsave(im_color, 'output/ps1-3-c-2.png')
 
     # interactively adjust parameters used in this method using sliders
     def update_exp(x, axs, sliders, buttons):
-        hough_peaks_noise = hough_peak_matlab_like(noise_hough_acc, sliders[0].val, sliders[1].val)
-        lines_p_noise = [(d_th[0], th_range[d_th[1]]) for d_th in hough_peaks_noise]
-        hough_peaks_blur = hough_peak_matlab_like(blur_hough_acc, sliders[0].val, sliders[1].val)
+        hough_peaks_blur = hough_peak_matlab_like(blur_hough_acc, sliders[0].val, sliders[1].val,
+                                                  np.asarray(blur_hough_acc.shape) // 10)
         lines_p_blur = [(d_th[0], th_range[d_th[1]]) for d_th in hough_peaks_blur]
-        return [4, 5], [draw_line_on_im(np.zeros(im_noise.shape), lines_p_noise),
-                        draw_line_on_im(np.zeros(blur_im_noise.shape), lines_p_blur)]
+        return [4], [draw_line_on_im(np.zeros(blur_im_noise.shape), lines_p_blur)]
 
     slider_attr = [{'label': 'num peaks', 'valmin': 0, 'valmax': 99, 'valstep': 1},
                    {'label': 'hough peak threshold', 'valmin': 0.1, 'valmax': .99}]
-    imshow([im_noise, blur_im_noise, edge_noise, edge_blur_noise, zeros, zeros],
+    imshow([im_noise, blur_im_noise, edge_noise, edge_blur_noise, zeros],
            ['im_noise', 'blur_im_noise', 'edge_noise', 'edge_blur_noise', 'noise lines', 'blur lines'], shape=(3, 2),
            slider_attr=slider_attr, slider_callback=[update_exp] * 2)
+    """
+    What you had to do to get the best result you could?
+    Just adjusting the blur params (window size and sigma) to smoothen all the noise does the job
+    """
 
 
 def p4():
     im_filename = 'ps1-input1'
     im = imread_from_rep(im_filename, grey_scale=True)
     im_color = imread_from_rep(im_filename)
+    # a
     blur_im = cv.GaussianBlur(im, (3, 3), 0)
     imsave(blur_im, 'output/ps1-4-a-1.png')
+    # b
     edge = cv.Canny(blur_im, 100, 200)
     imsave(edge, 'output/ps1-4-b-1.png')
+    # c
     theta_range = np.arange(-180, 180, 1)
     hough_acc = hough_lines_acc(edge, theta_range)
     hough_peaks = hough_peak_matlab_like(hough_acc, 4, 0.6)
@@ -289,43 +229,14 @@ def p4():
     imshow([edge, acc_peaks_highlighted, line_im, im_color])
 
 
-def hough_circle_acc(edge, r):
-    h = np.zeros(edge.shape)
-    th_res = int(np.round(360 // (2 * np.pi * r)))
-    for i in range(edge.shape[0]):
-        for j in range(edge.shape[1]):
-            if edge[i, j] > 0:
-                for th in range(0, 360, th_res):
-                    u = int(np.round(r * np.cos(th * np.pi / 180.0)))
-                    v = int(np.round(r * np.sin(th * np.pi / 180.0)))
-                    if is_in(edge.shape, i + u, j + v):
-                        h[i + u, j + v] = h[i + u, j + v] + 1
-    return h
-
-
-def draw_circle(im, centers, r, onCopy=True, val=1):
-    if onCopy:
-        im = np.copy(im)
-    th_res = int(np.round(360 // (2 * np.pi * r)))
-    for center in centers:
-        i = center[0]
-        j = center[1]
-        for th in range(0, 360, th_res):
-            u = int(np.round(r * np.cos(th * np.pi / 180.0)))
-            v = int(np.round(r * np.sin(th * np.pi / 180.0)))
-            if is_in(im.shape, i + u, j + v):
-                im[i + u, j + v] = val
-    return im
-
-
-def p5():
+def p5_a():
     im_filename = 'ps1-input1'
     im = imread_from_rep(im_filename, grey_scale=True)
     im = cv.GaussianBlur(im, (3, 3), 0)
     imsave(im, 'output/ps1-5-a-1.png')
     im_color = imread_from_rep(im_filename)
     r = 20
-    edge = cv.Canny(im, 100, 200)
+    edge = cv.Canny(im, 290, 290)
     imsave(edge, 'output/ps1-5-a-2.png')
     hough_acc = imfix_scale(hough_circle_acc(edge, r))
     peaks = hough_peak_matlab_like(hough_acc, 10, 0.7)
@@ -338,7 +249,6 @@ def p5():
 
     def update_exp(x, axs, sliders, buttons):
         peaks = hough_peak_matlab_like(hough_acc, sliders[1].val, sliders[0].val)
-        print(peaks)
         highlighted = highlight_pos_im(hough_acc, peaks, (10, 10))
         drawn_over_im = draw_circle(np.zeros(im.shape), centers=peaks, r=r)
         drawn_over_color = overlap_boolean_image(im_color, drawn_over_im > 0)
@@ -350,45 +260,65 @@ def p5():
     imsave(drawn_over_color, 'output/ps1-5-a-3.png')
 
 
-def p5_with_unknown_radii():
+def p5_b():
+    """
+    be wary before running this without the files ('observations/hough_acc_coins_%s_%s.npy' % (im_filename, r_range)).
+    This is taking hell lot of time
+    """
     im_filename, r_range = [('tyre', range(28, 40)), ('ps1-input1', range(20, 50))][1]
     im = imread_from_rep(im_filename, grey_scale=True)
     im = cv.GaussianBlur(im, (3, 3), 0)
     im_color = imread_from_rep(im_filename)
-    edge = cv.Canny(im, 100, 200)
-    hough_acc_3d = np.concatenate([hough_circle_acc(edge, r)[:, :, np.newaxis] for r in r_range], axis=2)
-    peaks = hough_peak_matlab_like(hough_acc_3d, 10, 0.5)
+    edge = cv.Canny(im, 290, 290)
+    pre_computed_acc_path = 'observations/hough_acc_coins_%s_%s.npy' % (im_filename, r_range)
+    hough_acc_3d = np_load(1, pre_computed_acc_path)
+    if hough_acc_3d is None:
+        hough_acc_3d = np.concatenate([hough_circle_acc(edge, r)[:, :, np.newaxis] for r in r_range], axis=2)
+        np_save([hough_acc_3d], pre_computed_acc_path)
+    print(hough_acc_3d.shape)
+    peaks = hough_peak_matlab_like(hough_acc_3d, 14, 0.4, (50, 50, 20))
     im_drawn = np.zeros(im.shape)
-    [draw_circle(im_drawn, [(peak[0], peak[1])], r=r_range[peak[2]], onCopy=False) for peak in peaks]
+    [draw_circle(im_drawn, [(peak[0], peak[1])], r=r_range[peak[2]], on_copy=False) for peak in peaks]
     im_drawn = overlap_boolean_image(im_color, im_drawn > 0)
     imsave(im_drawn, 'output/ps1-5-b-1.png')
     imshow(im_drawn)
-
-
-def find_parallel_lines_from_hough_peaks(peaks, th_range, allowed_dist=np.PINF):
-    parallel_set = []
-    th_err = 3  # allowed fluctuations in parallel lines in degrees
-    # convert to bin fluctuations
-    th_err = int(np.round(th_err * len(th_range) / (th_range[-1] - th_range[0])))
-    for i in range(len(peaks)):
-        for j in range(i + 1, len(peaks)):
-            if np.abs(peaks[i][1] - peaks[j][1]) <= th_err and np.abs(peaks[i][0] - peaks[j][0]) <= allowed_dist:
-                parallel_set.append((peaks[i], peaks[j]))
-    return parallel_set
+    """
+    What you had to do to find circles?
+    1. Adjust the canny edge thresholds to remove any noisy edges
+    2. customize shape of hough peak detector, so no spurious circles are detected
+    """
 
 
 def p6():
     """
-    be wary before funning this. This is taking hell lot of time XD
+    be wary before running this with out the file 'observations/hough_line_acc_%s_%s.npy' % (im_filename, r_range)
     """
+    # a
     im_filename, r_range = [('ps1-input2 copy', range(3, 9)), ('ps1-input2', range(30, 38))][1]
     im = imread_from_rep(im_filename, grey_scale=True)
     im_color = imread_from_rep(im_filename)
     blur_im = cv.GaussianBlur(im, (3, 3), 0)
     edge = cv.Canny(blur_im, 100, 200)
     theta_range = np.arange(-180, 180, 1)
-    hough_acc = hough_lines_acc(edge, theta_range)
+    pre_computed_acc_path = 'observations/hough_line_acc_%s_%s.npy' % (im_filename, r_range)
+    hough_acc = np_load(1, pre_computed_acc_path)
+    if hough_acc is None:
+        hough_acc = hough_lines_acc(edge, theta_range)
+        np_save([hough_acc], pre_computed_acc_path)
     hough_peaks = hough_peak_matlab_like(hough_acc, 10, 0.6)
+    lines_p_m = [(d_th[0], theta_range[d_th[1]]) for d_th in hough_peaks]
+    line_im = draw_line_on_im(np.zeros(im.shape), lines_p_m)
+    imsave(overlap_boolean_image(im_color, line_im > 0, color_val=(255, 255, 0)), 'output/ps1-6-a-1.png')
+    # b
+    """
+    Likely the last step found lines that are not the boundaries of the pens. What are the problems present?
+    
+    Hough lines detect all the edges that run straight. They need not be of the pens. So, we should try finding lines
+    that are parallel to each other and are near by each other.
+    This logic might not work in production (real life) but will work in this example as all the pens in the image are
+    not nearby and parallel to each other.  
+    """
+    # c
     parallel_peak_pairs = find_parallel_lines_from_hough_peaks(hough_peaks, th_range=theta_range, allowed_dist=40)
     pen_lines = []
     [pen_lines.append(pair[0]) or pen_lines.append(pair[1]) for pair in parallel_peak_pairs]
@@ -401,47 +331,95 @@ def p6():
 
 
 def p7():
+    # a
     im_filename, r_range = [('ps1-input1', range(20, 50)), ('ps1-input2', range(30, 38))][1]
-    im = imread_from_rep(im_filename, grey_scale=True)
+    im = imread_from_rep(im_filename)[:, :, 1]
     im_color = imread_from_rep(im_filename)
-    blur_im = cv.GaussianBlur(im, (3, 3), 0)
-    edge = cv.Canny(blur_im, 100, 200)
-    hough_acc_3d = np.concatenate([hough_circle_acc(edge, r)[:, :, np.newaxis] for r in r_range], axis=2)
-    peaks = hough_peak_matlab_like(hough_acc_3d, 10, 0.5)
+    blur_im = cv.GaussianBlur(im, (5, 5), 3)
+    edge = cv.Canny(blur_im, 100, 150)
+    pre_computed_acc_path = 'observations/hough_circle_acc_%s_%s.npy' % (im_filename, r_range)
+    hough_acc_3d = np_load(1, pre_computed_acc_path)
+    if hough_acc_3d is None:
+        hough_acc_3d = np.concatenate([hough_circle_acc(edge, r)[:, :, np.newaxis] for r in r_range], axis=2)
+        np_save([hough_acc_3d], pre_computed_acc_path)
+    hough_acc_3d = (hough_acc_3d / hough_acc_3d.max()) * 255
+    peaks = hough_peak_matlab_like(hough_acc_3d, 11, 0.3, (50, 50, 8))
     im_drawn = np.zeros(im.shape)
-    [draw_circle(im_drawn, [(peak[0], peak[1])], r=r_range[peak[2]], onCopy=False) for peak in peaks]
+    [draw_circle(im_drawn, [(peak[0], peak[1])], r=r_range[peak[2]], on_copy=False) for peak in peaks]
     im_color = overlap_boolean_image(im_color, im_drawn > 0, color_val=(255, 255, 0))
     imsave(im_color, 'output/ps1-7-a-1.png')
     imshow([edge, im_color])
+    # b
+    """
+    Are there any false alarms? How would/did you get rid of them?
+    Yes. 
+    One way is to eliminate false votes caused by clusters of spurious edge pixels. This can be done by n-correlating 
+    hough accumulator with normalized gaussian filter.
+    This will eliminate dense accumulator regions which are not distributed towards a center.  
+    """
 
 
 def p8():
-    im_filename, r_range = [('ps1-input1', range(20, 50)), ('ps1-input3 copy', range(10, 15))][1]
+    im_filename, r_range = [('ps1-input3', range(30, 40))][0]
+    # a
     im = imread_from_rep(im_filename, grey_scale=True)
     im_color = imread_from_rep(im_filename)
+    src = np.array([
+        [0, 0],
+        [im.shape[1] - 1, 0],
+        [im.shape[1] - 1, im.shape[0] - 1],
+        [0, im.shape[0] - 1]], dtype="float32")
+    dst = np.array([
+        [120, 33],
+        [542, 22],
+        [682, 280],
+        [0, 280]], dtype="float32")
+    im = cv.warpPerspective(im, cv.getPerspectiveTransform(dst, src), (im.shape[1], im.shape[0]))
+    imshow(im)
     blur_im = cv.GaussianBlur(im, (3, 3), 0)
-    edge = cv.Canny(blur_im, 120, 290)
-    hough_acc_s = [cv.GaussianBlur(hough_circle_acc(edge, r), (9, 9), 0)[:, :, np.newaxis] for r in r_range]
-    imshow(hough_acc_s)
-    hough_acc_3d = np.concatenate(hough_acc_s, axis=2)
-    peaks = hough_peak_matlab_like(hough_acc_3d, 10, 0.5, (20, 20, 3))
+    edge = cv.Canny(blur_im, 120, 230)
+    imshow(edge)
+    pre_computed_acc_path = 'observations/hough_circle_acc_%s_%s.npy' % (im_filename, r_range)
+    hough_acc_3d = np_load(1, pre_computed_acc_path)
+    if hough_acc_3d is None:
+        hough_acc_s = [cv.GaussianBlur(hough_circle_acc(edge, r), (9, 9), 0)[:, :, np.newaxis] for r in r_range]
+        imshow(hough_acc_s)
+        hough_acc_3d = np.concatenate(hough_acc_s, axis=2)
+        np_save([hough_acc_3d], pre_computed_acc_path)
+    peaks = hough_peak_matlab_like(hough_acc_3d, 15, 0.1, (100, 100, 10))
     im_drawn = np.zeros(im.shape)
-    [draw_circle(im_drawn, [(peak[0], peak[1])], r=r_range[peak[2]], onCopy=False) for peak in peaks]
+    [draw_circle(im_drawn, [(peak[0], peak[1])], r=r_range[peak[2]], on_copy=False) for peak in peaks]
+    im_color = cv.warpPerspective(im_color, cv.getPerspectiveTransform(dst, src), (im.shape[1], im.shape[0]))
     im_color = overlap_boolean_image(im_color, im_drawn > 0, color_val=(255, 255, 0))
+    im_color = cv.warpPerspective(im_color, cv.getPerspectiveTransform(src, dst), (im.shape[1], im.shape[0]))
     imsave(im_color, 'output/ps1-8-c-1.png')
     imshow([edge, im_color])
+    # b
+    """
+    What might you do to fix the circle problem?
+    Warping using known homography is a hack I did to find the circles very aligned. In real usage, if we do not know 
+    the homography transformation, we might have to find it.
+    
+    Another way of fixing the circle problem is to do fuzzy voting on the accumulator array. That is, we add a vote
+     for all accumulator cells containing a vote. 
+     That is we can blur the accumulator with a flat or gaussian kernel to distribute the votes and then we find the 
+     centroid of dense distributions (which might look like fuzzy ellipses). From the shape of the distribution, we 
+     derive the warping of coins and detect their contours.          
+    """
 
 
-""" Run just the methods that are needed, else the session will go through a lot of interactive canvas popups """
-# testing_imshow()
-# p1()
-# p2_experiment()
-# p2_experiment_load_houghacc()
-# p2_experiment_peak_finding()
-# p3()
-# p4()
-# p5()
-# p5_with_unknown_radii()
-# p6()
-# p7()
-# p8()
+if __name__ == '__main__':
+    """ Run just the methods that are needed, else the session will go through a lot of interactive canvas popups """
+    # testing_imshow()
+    p1()
+    # p2()
+    # p2_experiment_load_houghacc()
+    # p2_experiment_peak_finding()
+    # p3()
+    # p4()
+    # p5_a()
+    # p5_b()
+    # p6()
+    # p7()
+    # p8()
+    # p8_exp()

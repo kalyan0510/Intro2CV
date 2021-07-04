@@ -68,8 +68,8 @@ def observe_mhi():
 
 def p2_a():
     print(
-        'Confusion matrix: (Rows - predicted, Cols - actuals) w/ same test & train data\n%s' % compute_cf_mat_with_test_person(
-            [1, 2, 3], [1, 2, 3]))
+        'Confusion matrix: (Rows - predicted, Cols - actuals) w/ same test & train data\n%s' %
+        compute_cf_mat_with_test_person([1, 2, 3], [1, 2, 3]))
 
 
 def p2_b():
