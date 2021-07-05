@@ -4,6 +4,11 @@ from ps_5.helper import lucas_kanade, add_flow_over_im, reduce, gaussian_pyramid
 from ps_hepers.helpers import imread_from_rep, imshow, np_load, imsave, np_save, imfix_scale, stitch_images, \
     get_frames_from_video
 
+"""
+Problem Set - 5
+Problems: https://docs.google.com/document/d/1Bi2_CThMfoLEf4TCMhyFR7cls6t3LAiSz7YYYV89eoE/pub?embedded=true
+"""
+
 
 def p1_a():
     a = imread_from_rep('TestSeq/Shift0', grey_scale=True)
@@ -26,6 +31,13 @@ def p1_a():
     flow_ims = [add_flow_over_im(a, lucas_kanade(a, x, (47, 47))) for x in [d, e, f]]
     imshow(flow_ims, ['r10', 'r20', 'r40'], shape=(3, 1))
     [imsave(im, 'output/ps5-1-b-%s.png' % (i + 1)) for i, im in zip(range(len(flow_ims)), flow_ims)]
+    """
+    Does it still work? Does it fall apart on any of the pairs?
+    
+    It does fall apart on all of heavily shifted images.
+    Motion flow can only be estimated when shift in pixels are small. Since, all the lk flow detector does is compare 
+    gradients ix and iy to time gradient, when time gradient fails (i.e, when delta is too high), it falls apart.    
+    """
 
 
 def p1_exp():
@@ -172,6 +184,16 @@ def p5():
                sup_title='differences')
         imsave(stitch_images(arrows), 'output/ps5-5-%s-1.png' % chr(ord('a') + d))
         imsave(stitch_images(imfix_scale(diffs)), 'output/ps5-5-%s-2.png' % chr(ord('a') + d))
+        """
+        With some changes I was able to derive motion flow for this sequence. It was hard because the shift in pixels 
+        is too high for lk detection (~35 pixels).
+        The detected optical flow was not too bad, as it shows the approximate magnitude and direction of shift. 
+        
+        Notice that there was some flow detected over the static pixels around the ball. This is because, the actual 
+        flow was only detected in highest pyramid level and since the image is scaled multiple fold, the pixels around a
+        moving object are also affected, not to mention the noise added by missing/new pixels at boundary of moving 
+        object.      
+        """
 
 
 if __name__ == '__main__':

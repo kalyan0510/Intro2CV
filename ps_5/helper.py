@@ -133,8 +133,10 @@ def hierarchical_lk(im1, im2, k_shape=None, max_l=np.PINF, up_scaled=False):
 
 
 def hierarchical_laplacian_lk(im1, im2, k_shape=None, max_l=np.PINF):
-    gpy_1, gpy_2 = laplacian_pyramid(im1[...,0] + cv.Canny(im1, 100,200)), laplacian_pyramid(im2[...,0] + cv.Canny(im2, 100,200))
-    gpy_1, gpy_2 = [((level+255)/2).astype(np.uint8) for level in gpy_1], [((level+255)/2).astype(np.uint8) for level in gpy_2]
+    gpy_1, gpy_2 = laplacian_pyramid(im1[..., 0] + cv.Canny(im1, 100, 200)), laplacian_pyramid(
+        im2[..., 0] + cv.Canny(im2, 100, 200))
+    gpy_1, gpy_2 = [((level + 255) / 2).astype(np.uint8) for level in gpy_1], [((level + 255) / 2).astype(np.uint8) for
+                                                                               level in gpy_2]
     max_l = min(len(gpy_1), len(gpy_2), max_l)
     flow = np.zeros(gpy_1[-1].shape[:2] + (2,)).astype(np.float32)
     for i in range(max_l - 1, -1, -1):
