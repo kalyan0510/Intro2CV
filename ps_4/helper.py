@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 import multiprocess as mp
 from multiprocessing import freeze_support
-from ps_hepers.helpers import non_max_suppression, xy_2_ij
+from ps_hepers.helpers import non_max_suppression, xy_2_ij, ij_2_xy
 from scipy.spatial import ConvexHull
 
 
@@ -56,7 +56,7 @@ def compute_harris_resp(im, kernel_size=3, alpha=0.04):
 
 def compute_harris_corners(img, threshold=0.01, w_shape=(5, 5), alpha=0.04):
     img = img.copy()
-    harris_resp = compute_harris_resp(img, kernel_size=5, alpha=alpha)
+    harris_resp = compute_harris_resp(img, kernel_size=7, alpha=alpha)
     harris_resp[harris_resp < threshold * harris_resp.max()] = 0
     suppressed = non_max_suppression(harris_resp, w_shape)
     x_s, y_s = np.where(suppressed > 0)
@@ -84,22 +84,20 @@ def get_matches(im_a, im_b):
     return [(xy_2_ij(pts_a[match.queryIdx].pt), xy_2_ij(pts_b[match.trainIdx].pt)) for match in matches]
 
 
-# def get_trans_consensus(matches):
-#     pts_a = np.asarray([match[0] for match in matches])
-#     pts_b = np.asarray([match[1] for match in matches])
-#
-#     def consensus_for_i(i):
-#         trans_ij = pts_b[i] - pts_a[i]
-#         consensus_set = np.linalg.norm((pts_a + trans_ij) - pts_b, axis=1) < 5
-#         return consensus_set.sum(), consensus_set
-#
-#     (consensus_strength, cs) = (np.NINF, None)
-#     for i in range(len(matches)):
-#         cs_strength_i, cs_i = consensus_for_i(i)
-#         (consensus_strength, cs) = (
-#             max(consensus_strength, cs_strength_i), cs_i if consensus_strength < cs_strength_i else cs)
-#
-#     return list(np.where(cs)[0])
+def draw_matches(a, b, matches, color='random'):
+    def color_i(i):
+        np.random.seed(i)
+        return {'random': list(np.random.random(size=3) * 256), 'weighted': (255 - i * 255.0 / len(matches), 0, 0)}.get(
+            color, color)
+
+    ab = np.concatenate([a, b], axis=1)
+    ab = np.concatenate([ab[:, :, np.newaxis]] * 3, axis=2)
+    for ((p1, p2), i) in reversed(list(zip(matches, range(len(matches))))):
+        cv.line(ab, ij_2_xy(p1), ij_2_xy((p2[0], p2[1] + a.shape[1])), color=color_i(i), thickness=2,
+                lineType=cv.LINE_AA)
+        cv.circle(ab, ij_2_xy(p1), radius=5, color=color_i(i), thickness=2)
+        cv.circle(ab, ij_2_xy((p2[0], p2[1] + a.shape[1])), radius=5, color=color_i(i), thickness=2)
+    return ab
 
 
 def ransac(matches, consensus_for_sample, sample_size, outlier_p=0.5, biased=True, retries=None):

@@ -78,9 +78,10 @@ def get_transformation_mat_2d(points):
     return np.matmul(t_a_s, t_a_c)
 
 
-def calculate_residual(m, pts_world, pts_proj):
+def calculate_avg_residual(m, pts_world, pts_proj):
     pts_world_mat = np.append(np.asarray(pts_world), np.ones((len(pts_world), 1)), axis=1).T
     pts_proj_est = np.matmul(m, pts_world_mat)
     pts_proj_est_non_homo = pts_proj_est.T[:, 0:2] / pts_proj_est.T[:, [2, 2]]
-    ssd_error = np.linalg.norm(pts_proj_est_non_homo - np.asarray(pts_proj))
-    return np.sqrt(ssd_error)
+    residual = np.linalg.norm(pts_proj_est_non_homo - np.asarray(pts_proj))
+    # return averaged residual
+    return residual/np.sqrt(pts_world_mat.shape[0])

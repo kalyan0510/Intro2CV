@@ -1,8 +1,8 @@
 import numpy as np
 from ps_4.helper import im_der, compute_harris_resp, compute_harris_corners, get_sift_descriptors, get_matches, \
-    ransac_trans, similarity_mat, affine_mat, ransac_transformation, warp_b_on_a
-from ps_hepers.helpers import imread_from_rep, imshow, imfix_scale, imsave, non_max_suppression, overlap_boolean_image, \
-    np_load, np_save, ij_2_xy, mark_points
+    ransac_trans, similarity_mat, affine_mat, ransac_transformation, warp_b_on_a, draw_matches
+from ps_hepers.helpers import imread_from_rep, imshow, imfix_scale, imsave, overlap_boolean_image, \
+    np_load, np_save
 import cv2 as cv
 
 """
@@ -39,6 +39,20 @@ def p1_bc():
         for_disp.append((img, harris_resp, corners_marked))
     [imshow([img, harris_resp, corners_marked], cmap='gray', shape=(2, 2)) for (img, harris_resp, corners_marked) in
      for_disp]
+    """
+    Describe the behavior of your corner detector including anything surprising, such as points not found in both
+    images of a pair.
+    Corner detection is sensitive to noise. There were corners detected at places with sharp intensity changes. So, 
+    often when there is sharp noise, a corner is detected and the same corner is not detected in the pair image. 
+    
+    Also, few corners that can be clearly perceived by humans are not detected by the harris algo. For example, the 
+    rectangular corners of the lawn in front of the campus building in simA.jpg is not detected, but it looks well 
+    like an interest point. 
+    The reason could be because, the lawn and the ground has similar pixel intensities. But the reason why humans see it
+    might be because we are aware of the entire lawn as a separate entity from ground and so, are able to see cornerness
+    at those pixels. Also, such pixels could cause only smaller harris responses and are prone to thresholding done
+    before the non maximal suppression step.
+    """
 
 
 def p1_exp():
@@ -88,22 +102,6 @@ def p2_a():
         imshow(ab, cmap='gray')
 
 
-def draw_matches(a, b, matches, color='random'):
-    def color_i(i):
-        np.random.seed(i)
-        return {'random': list(np.random.random(size=3) * 256), 'weighted': (255 - i * 255.0 / len(matches), 0, 0)}.get(
-            color, color)
-
-    ab = np.concatenate([a, b], axis=1)
-    ab = np.concatenate([ab[:, :, np.newaxis]] * 3, axis=2)
-    for ((p1, p2), i) in reversed(list(zip(matches, range(len(matches))))):
-        cv.line(ab, ij_2_xy(p1), ij_2_xy((p2[0], p2[1] + a.shape[1])), color=color_i(i), thickness=2,
-                lineType=cv.LINE_AA)
-        cv.circle(ab, ij_2_xy(p1), radius=5, color=color_i(i), thickness=2)
-        cv.circle(ab, ij_2_xy((p2[0], p2[1] + a.shape[1])), radius=5, color=color_i(i), thickness=2)
-    return ab
-
-
 def p2_b():
     img_pair_names = [('transA', 'transB'), ('simA', 'simB')]
     for (im_name_a, im_name_b), i_im in zip(img_pair_names, range(len(img_pair_names))):
@@ -150,6 +148,14 @@ def p3_bcde():
             imshow(blend, 'blend : %s' % transformation_type, cmap='gray')
             imsave(warped, 'output/ps4-3-%s-%s.png' % (chr(ord('d') + pb_i), 2 * i_im + 1))
             imsave(blend, 'output/ps4-3-%s-%s.png' % (chr(ord('d') + pb_i), 2 * i_im + 2))
+    """
+    Comment as to whether using the similarity transform or the affine one gave better results, and why or why not.
+    Using the similarity transform gave better alignment. This could be because, in calculating similarity transform 
+    matrix we only need to solve for 4 unknowns where as in affine we solve for 6. Solution for the two extra unknowns
+    can come along with some error. Probably that can have an effect. 
+    But in the above case, there are too many factors that effect the efficiency of alignment. Random sampling can 
+    produce different results each time and the way of consensus voting hugely affects ransac.  
+    """
 
 
 def p3_exp():
