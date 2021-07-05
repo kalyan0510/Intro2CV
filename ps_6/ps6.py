@@ -3,6 +3,11 @@ import numpy as np
 from ps_6.helper import track_patch
 from ps_hepers.helpers import get_frames_from_video, imshow
 
+"""
+Problem Set - 6
+Problems: https://docs.google.com/document/d/1ZGdXBjLgr9U-6wdIgcEyRmDHckJFlyhnSWXK8OsduS4/pub?embedded=true
+"""
+
 
 def read_box(path):
     with open(path) as f:
@@ -15,7 +20,31 @@ def p1_a():
     frames = get_frames_from_video('input/pres_debate.avi', resize_to=(512, 288))
     patch_box = (read_box('input/pres_debate.txt') * 2 / 5).astype(np.int32)
     track_patch(frames, patch_box, frames_to_save=[28, 88, 144], output_format='output/ps6-1-a-%s.png', sigma_mse=10,
-                dynamics_std=5.0, num_particles=100, prior='gaussian', similarity_method='mse')
+                dynamics_std=5.0, num_particles=30, prior='gaussian', similarity_method='mse')
+    """
+    # b
+    Picking up the correct window size for tracking can be hard. 
+    With bigger windows the templates hold enough information about the target and thus will have less ambiguity at 
+    localization. But this comes with a downside of noise from background. With bigger windows, if the background 
+    changes, depending on the distance method, tracking becomes difficult. 
+    
+    With smaller windows we might be able to avoid disturbances in background changes but we might not have entire 
+    information in the widow to track the target. For example, if the window only has a patch of skin but the target is
+    the head, the tracker will be lost among the other identical patches of skin on the head. 
+    
+    # c
+    σMSE defines the sensitivity of score to the distance method (mse). σMSE should be set to a value that corresponds 
+    to relevance of target distance detection.
+    
+    With higher σMSE's, scoring does not happen correctly and particle weights are distributed evenly, making the 
+    irrelevant particles to also get re-sampled, resulting in poor particle tracking performance. 
+    
+    With lowers σMSE, the scores tend to be smaller and variations between them lesser. Resulting in poor particle 
+    tracking performance.
+    
+    # d
+    Roughly only 30 particles, at least, were required for tracking Romney's face successfully till the end.
+    """
 
 
 def p1_e():
@@ -52,10 +81,12 @@ def p2_a():
 def p2_b():
     frames = get_frames_from_video('input/noisy_debate.avi')
     patch_box = (read_box('input/romneys_hand.txt')).astype(np.int32)
-    # below params just does the job to track his hand until mid of the video. A noise tolerant template update logic
-    # might help the tracker to maintain the target
     track_patch(frames, patch_box, frames_to_save=[15, 50, 140], output_format='output/ps6-2-b-%s.png', sigma_mse=2.5,
                 dynamics_std=30.0, num_particles=500, prior='gaussian', t_update_factor=0.3, state_est='top_quarter')
+    """
+    above params just does the job to track his hand until mid of the video. A noise tolerant template update logic
+    might help the tracker to maintain the target
+    """
 
 
 def p3_a():
@@ -84,10 +115,17 @@ def p4():
     track_patch(frames, patch_box, track_velocities=True, frames_to_save=[40, 100, 240],
                 output_format='output/ps6-4-a-%s.png', sigma_mse=10, dynamics_std=5.0, num_particles=1500,
                 prior='uniform', similarity_method='mseblur')
+    """
+    Roughly 1000 particles were required to track the blond-woman. In this model, I had used particle velocities and 
+    window sizes in the particle states. 
+    The dynamics included position to be updated according to the velocity.
+    With multiple dimensions in the particle state (i.e, 5 - 2 for position, 2 for velocity, 1 for window size), more 
+    particles were required in maintaining/tracking or scanning the target.  
+    """
 
 
 if __name__ == '__main__':
-    # p1_a()
+    p1_a()
     # p1_e()
     # p1_exp()
     # p1_exp_l()
@@ -95,4 +133,4 @@ if __name__ == '__main__':
     # p2_b()
     # p3_a()
     # p3_b()
-    p4()
+    # p4()
