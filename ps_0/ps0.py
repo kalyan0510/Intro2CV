@@ -1,5 +1,5 @@
 import numpy as np
-from ps_hepers.helpers import imread_from_rep, add_gaussian_noise, imread, imsave, imfix_scale
+from ps_hepers.helpers import imread_from_rep, add_gaussian_noise, imread, imsave, imfix_scale, imshow
 
 """
 Problem Set - 0
@@ -87,13 +87,13 @@ def p4():
 def p5():
     im = imread_from_rep('lena')
     # a
-    sigma = 5.0
+    sigma = 15.0
     im_green = np.ndarray.copy(im)
     im_green[:, :, 1] = add_gaussian_noise(im_green[:, :, 1], sigma)
     imsave(im_green, 'output/ps0-5-a-1.png')
     # b
     im_blue = np.ndarray.copy(im)
-    im_blue[:, :, 0] = add_gaussian_noise(im_blue[:, :, 0], sigma)
+    im_blue[:, :, 2] = add_gaussian_noise(im_blue[:, :, 2], sigma)
     imsave(im_blue, 'output/ps0-5-b-1.png')
     # c
     """
