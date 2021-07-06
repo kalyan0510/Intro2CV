@@ -1,9 +1,13 @@
 import cv2 as cv
 import numpy as np
-from ps_7.helper import frame_diff, get_action_observations_with_labels, get_video_path, train_and_test, \
-    compute_cf_mat_with_test_person
+from ps_7.helper import frame_diff, get_video_path, compute_cf_mat_with_test_person
 from ps_7.mhi_reader import MHIReader
 from ps_hepers.helpers import get_frames_from_video, imshow, imsave, imfix_scale
+
+"""
+Problem Set - 7
+Problems: https://docs.google.com/document/d/1ri0YKEKL63WUcFtq0AGyrlMl2d8auzZI424dOXVsDGg/view
+"""
 
 
 def p1_a_exp():
