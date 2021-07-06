@@ -73,8 +73,9 @@ def p2():
     imshow(g_py)
     [imsave(g_py[i], 'output/ps5-2-a-%s.png' % (i + 1)) for i in range(len(g_py))]
     l_py = laplacian_pyramid(im, 4)
-    imshow([imfix_scale(i) for i in l_py])
-    [imsave(g_py[i], 'output/ps5-2-b-%s.png' % (i + 1)) for i in range(len(g_py))]
+    l_py = [imfix_scale(i) for i in l_py]
+    imshow(l_py)
+    [imsave(l_py[i], 'output/ps5-2-b-%s.png' % (i + 1)) for i in range(len(g_py))]
 
 
 def p3_exp():
