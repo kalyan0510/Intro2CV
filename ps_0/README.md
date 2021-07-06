@@ -4,7 +4,7 @@
 
 
 ### 1. Input images
-a0) Wide image  a1) Tall image  
+a) Wide image & Tall image  
 >
 ><img src="output/ps0-1-a-1.png" height="250">
 ><img src="output/ps0-1-a-2.png" height="250">

@@ -294,13 +294,13 @@ def p6():
     be wary before running this with out the file 'observations/hough_line_acc_%s_%s.npy' % (im_filename, r_range)
     """
     # a
-    im_filename, r_range = [('ps1-input2 copy', range(3, 9)), ('ps1-input2', range(30, 38))][1]
+    im_filename = ['ps1-input2 copy', 'ps1-input2', 'ps1-input3'][2]
     im = imread_from_rep(im_filename, grey_scale=True)
     im_color = imread_from_rep(im_filename)
     blur_im = cv.GaussianBlur(im, (3, 3), 0)
     edge = cv.Canny(blur_im, 100, 200)
     theta_range = np.arange(-180, 180, 1)
-    pre_computed_acc_path = 'observations/hough_line_acc_%s_%s.npy' % (im_filename, r_range)
+    pre_computed_acc_path = 'observations/hough_line_acc_%s.npy' % im_filename
     hough_acc = np_load(1, pre_computed_acc_path)
     if hough_acc is None:
         hough_acc = hough_lines_acc(edge, theta_range)
@@ -411,7 +411,7 @@ def p8():
 if __name__ == '__main__':
     """ Run just the methods that are needed, else the session will go through a lot of interactive canvas popups """
     # testing_imshow()
-    p1()
+    # p1()
     # p2()
     # p2_experiment_load_houghacc()
     # p2_experiment_peak_finding()
@@ -421,5 +421,4 @@ if __name__ == '__main__':
     # p5_b()
     # p6()
     # p7()
-    # p8()
-    # p8_exp()
+    p8()
