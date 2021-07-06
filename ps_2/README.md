@@ -24,7 +24,7 @@ a) Gaussian Noise over one image
 
 b) Contrast Difference
 
-><img src="input/ps2-3-b-1.png" height="250"> <img src="output/ps2-3-b-2.png" height="250"> 
+><img src="output/ps2-3-b-1.png" height="250"> <img src="output/ps2-3-b-2.png" height="250"> 
 
     The used similarity method SSD is sensitive to noise (gaussian or contrasting change) and hence can cause error in 
     calculated disparities
