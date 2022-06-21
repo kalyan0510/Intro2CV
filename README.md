@@ -1,4 +1,4 @@
-# Intro2CV - Indtroduction to Computer Vision - Udacity (Offered at Georgia Tech as CS 6476)
+# Intro2CV - Indtroduction to Computer Vision - Udacity (Georgia Tech - CS 6476)
 
 Introduction to CV is a course taught by professor Dr. Aaron Bobick, offered free online by Udacity  
 (https://www.udacity.com/course/introduction-to-computer-vision--ud810).
